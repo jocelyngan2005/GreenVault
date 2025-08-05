@@ -1,0 +1,37 @@
+import { NextResponse } from 'next/server';
+import { suiZkLoginClient } from '@/lib/sui-zklogin';
+
+export async function POST() {
+  try {
+    console.log('Starting pre-login data generation...');
+    
+    const preLoginData = await suiZkLoginClient.generatePreLoginData();
+    
+    console.log('Pre-login data generated successfully:', {
+      hasEphemeralKeyPair: !!preLoginData.ephemeralKeyPair,
+      maxEpoch: preLoginData.maxEpoch,
+      hasNonce: !!preLoginData.nonce,
+      hasRandomness: !!preLoginData.randomness
+    });
+    
+    return NextResponse.json({
+      success: true,
+      data: preLoginData,
+    });
+  } catch (error) {
+    console.error('Pre-login data generation error:', error);
+    console.error('Error details:', {
+      name: error instanceof Error ? error.name : 'Unknown',
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined
+    });
+    
+    return NextResponse.json(
+      {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to generate pre-login data',
+      },
+      { status: 500 }
+    );
+  }
+}
