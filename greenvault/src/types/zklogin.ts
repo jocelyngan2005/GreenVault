@@ -1,3 +1,4 @@
+// Google Login Types
 export interface ZkLoginState {
   ephemeralKeyPair: {
     privateKey: string;
@@ -55,4 +56,45 @@ export interface ZkLoginResponse {
   success: boolean;
   data?: ZkLoginData;
   error?: string;
+}
+
+// Email Login Types
+export interface User {
+  id: string;
+  email: string;
+  passwordHash: string;
+  name?: string;
+  createdAt: string;
+  walletAddress?: string;
+  walletPrivateKey?: string; // Encrypted in production
+}
+
+export interface LoginCredentials {
+  email: string;
+  password: string;
+}
+
+export interface SignupCredentials {
+  email: string;
+  password: string;
+  name?: string;
+}
+
+export interface AuthResponse {
+  success: boolean;
+  data?: {
+    user: Omit<User, 'passwordHash' | 'walletPrivateKey'> & { 
+      walletAddress?: string;
+    };
+    token: string;
+  };
+  error?: string;
+}
+
+export interface AuthToken {
+  userId: string;
+  email: string;
+  name?: string;
+  iat: number;
+  exp: number;
 }
