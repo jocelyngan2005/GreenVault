@@ -1,5 +1,5 @@
 # GreenVault Smart Contract Testing Guide
-# How to test functions using sui client call
+(How to test functions using sui client call)
 
 ## 📋 Required Deployment Information
 
@@ -15,11 +15,11 @@ After deploying your GreenVault smart contract, you'll need to collect the follo
 - **TREASURY_CAP_ID:** The treasury capability object ID
 
 ## Prerequisites
-# Before testing, make sure you have:
-# 1. Successfully deployed the GreenVault contract
-# 2. Collected all the required object IDs from deployment
-# 3. Sui CLI installed and configured
-# 4. Active Sui wallet with sufficient SUI for gas fees
+Before testing, make sure you have:
+1. Successfully deployed the GreenVault contract
+2. Collected all the required object IDs from deployment
+3. Sui CLI installed and configured
+#4. Active Sui wallet with sufficient SUI for gas fees
 
 ## Step 1: Get Your Address
 
@@ -526,21 +526,21 @@ sui client events --package PACKAGE_ID
 ```
 
 ### 17. Testing Workflow Example:
-# 1. Deploy contract → get PACKAGE_ID and shared object IDs
-# 2. Add yourself as verified issuer
-# 3. Register a project 
-# 4. Verify the project
-# 5. Mint carbon credits
-# 6. List credits for sale
-# 7. Test micro-credit minting
-# 8. Register oracles and test verification
-# 9. Query stats to verify everything worked
+1. Deploy contract → get PACKAGE_ID and shared object IDs
+2. Add yourself as verified issuer
+3. Register a project 
+4. Verify the project
+5. Mint carbon credits
+6. List credits for sale
+7. Test micro-credit minting
+8. Register oracles and test verification
+9. Query stats to verify everything worked
 
 ### 18. Error Handling:
-# Common errors and solutions:
-# - E_NOT_AUTHORIZED: Make sure you're added as verified issuer
-# - E_INVALID_PROJECT: Project must be verified before minting
-# - E_INVALID_QUANTITY: Quantity must be > 0
-# - E_INSUFFICIENT_FUNDS: Need enough SUI for gas
-# - E_ORACLE_NOT_AUTHORIZED: Oracle must be registered first
-# - E_STALE_DATA: Verification request may be expired or completed
+Common errors and solutions:
+- E_NOT_AUTHORIZED: Make sure you're added as verified issuer
+- E_INVALID_PROJECT: Project must be verified before minting
+- E_INVALID_QUANTITY: Quantity must be > 0
+- E_INSUFFICIENT_FUNDS: Need enough SUI for gas
+- E_ORACLE_NOT_AUTHORIZED: Oracle must be registered first
+- E_STALE_DATA: Verification request may be expired or completed
