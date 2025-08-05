@@ -1,4 +1,4 @@
-# GreenVault Move Smart Contract
+# GreenVault Sui Smart Contract
 
 ## Overview
 
