@@ -45,13 +45,13 @@ export default function OnboardingPage() {
     } else if (currentStep < steps.length - 1) {
       setCurrentStep(currentStep + 1);
     } else {
-      // Complete onboarding
-      window.location.href = '/vault';
+      // Complete onboarding - redirect to role selection
+      window.location.href = '/role-selection';
     }
   };
 
   const handleSkip = () => {
-    window.location.href = '/vault';
+    window.location.href = '/role-selection';
   };
 
   return (

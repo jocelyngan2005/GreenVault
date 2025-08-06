@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import Navigation from '@/components/Navigation';
 
 interface Message {
   id: string;
@@ -126,27 +127,7 @@ export default function AssistantPage() {
   };
 
   return (
-    <div className="min-h-screen bg-white text-black">
-      {/* Header */}
-      <header className="border-b border-black">
-        <div className="max-w-6xl mx-auto px-4 py-4">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center gap-6">
-              <Link href="/" className="text-2xl font-bold hover:underline">
-                GreenVault
-              </Link>
-              <nav className="flex gap-4">
-                <Link href="/vault" className="text-sm hover:underline">Vault</Link>
-                <Link href="/marketplace" className="text-sm hover:underline">Marketplace</Link>
-                <Link href="/assets" className="text-sm hover:underline">My Assets</Link>
-                <Link href="/assistant" className="text-sm font-medium underline">AI Assistant</Link>
-              </nav>
-            </div>
-            <Link href="/settings" className="text-sm hover:underline">Settings</Link>
-          </div>
-        </div>
-      </header>
-
+    <Navigation>
       <main className="max-w-4xl mx-auto px-4 py-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold mb-2">Carbon Offset Assistant</h1>
@@ -255,6 +236,6 @@ export default function AssistantPage() {
           </div>
         </div>
       </main>
-    </div>
+    </Navigation>
   );
 }

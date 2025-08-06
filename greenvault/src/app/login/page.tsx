@@ -7,7 +7,7 @@ import Link from 'next/link';
 
 // Google OAuth configuration
 const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
-const REDIRECT_URI = process.env.NEXT_PUBLIC_APP_URL;
+const REDIRECT_URI = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}`;
 
 export default function LoginPage() {
   const [isEmailLoading, setIsEmailLoading] = useState(false);
@@ -72,7 +72,15 @@ export default function LoginPage() {
         // Store zkLogin data for use in other pages
         localStorage.setItem('zklogin-data', JSON.stringify(zkLoginData));
 
-        window.location.href = '/vault'; // Redirect to onboarding
+        // Check if user has a role preference, otherwise go to role selection
+        const userRole = localStorage.getItem('user-role');
+        if (userRole === 'project-owner') {
+          window.location.href = '/project-owner';
+        } else if (userRole === 'credit-buyer') {
+          window.location.href = '/credit-buyer';
+        } else {
+          window.location.href = '/role-selection';
+        }
 
       } catch (err) {
         console.error('OAuth callback error:', err);
@@ -83,15 +91,23 @@ export default function LoginPage() {
       }
     };
 
-    // Handle real OAuth callback (from URL hash)
-    const urlParams = new URLSearchParams(window.location.hash.substring(1));
-    const idToken = urlParams.get('id_token');
+    // Check for OAuth callback from URL hash (direct from Google)
+    const handleDirectCallback = () => {
+      const hash = window.location.hash;
+      if (hash && hash.includes('id_token=')) {
+        const hashParams = new URLSearchParams(hash.substring(1));
+        const idToken = hashParams.get('id_token');
+        const state = hashParams.get('state');
+        
+        // Only handle login OAuth callbacks
+        if (idToken && state === 'zklogin') {
+          handleOAuthCallback(idToken);
+        }
+      }
+    };
 
-    if (idToken) {
-      handleOAuthCallback(idToken);
-    }
+    handleDirectCallback();
 
-    // Only handle real OAuth callback
     return () => { };
   }, []);
 
@@ -141,7 +157,15 @@ export default function LoginPage() {
 
       setStep('success');
 
-      window.location.href = '/vault'; // Redirect to vault
+      // Check if user has a role preference, otherwise go to role selection
+      const userRole = localStorage.getItem('user-role');
+      if (userRole === 'project-owner') {
+        window.location.href = '/project-owner';
+      } else if (userRole === 'credit-buyer') {
+        window.location.href = '/credit-buyer';
+      } else {
+        window.location.href = '/role-selection';
+      }
 
     } catch (err) {
       console.error('Email login error:', err);

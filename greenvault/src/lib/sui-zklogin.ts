@@ -208,26 +208,67 @@ export class SuiZkLoginClient {
       console.log('[zkLogin] Prover request URL:', this.proverUrl);
       console.log('[zkLogin] Prover request payload:', JSON.stringify(proverPayload, null, 2));
 
-      const response = await fetch(this.proverUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(proverPayload),
-      });
+      // Retry logic for prover service
+      const maxRetries = 3;
+      let lastError: Error | null = null;
 
-      if (!response.ok) {
-        // Log the response body for more details
-        const errorText = await response.text();
-        console.error('[zkLogin] Prover error response:', errorText);
-        throw new Error(`Prover service error: ${response.statusText}`);
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          console.log(`[zkLogin] Prover request attempt ${attempt}/${maxRetries}`);
+          
+          const response = await fetch(this.proverUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(proverPayload),
+          });
+
+          if (!response.ok) {
+            // Log the response body for more details
+            const errorText = await response.text();
+            console.error(`[zkLogin] Prover error response (attempt ${attempt}):`, errorText);
+            
+            // If it's a server error (5xx), retry; if client error (4xx), don't retry
+            if (response.status >= 500 && attempt < maxRetries) {
+              console.log(`[zkLogin] Server error, retrying in ${attempt * 2} seconds...`);
+              await new Promise(resolve => setTimeout(resolve, attempt * 2000));
+              continue;
+            }
+            
+            throw new Error(`Prover service error: ${response.statusText}`);
+          }
+
+          const zkProof = await response.json();
+          console.log('[zkLogin] ZK proof received successfully');
+          return zkProof;
+          
+        } catch (error) {
+          lastError = error as Error;
+          
+          // If it's a timeout or connection error and we have retries left, retry
+          if ((error as any).name === 'TimeoutError' || 
+              (error as any).name === 'ConnectTimeoutError' || 
+              (error as any).cause?.code === 'UND_ERR_CONNECT_TIMEOUT') {
+            
+            if (attempt < maxRetries) {
+              console.log(`[zkLogin] Connection timeout, retrying in ${attempt * 2} seconds...`);
+              await new Promise(resolve => setTimeout(resolve, attempt * 2000));
+              continue;
+            }
+          }
+          
+          // If it's not a retryable error, throw immediately
+          throw error;
+        }
       }
 
-      const zkProof = await response.json();
-      return zkProof;
+      // If we get here, all retries failed
+      throw lastError || new Error('All retry attempts failed');
+      
     } catch (error) {
       console.error('Error requesting ZK proof:', error);
-      throw new Error('Failed to get ZK proof from prover service');
+      throw new Error('Failed to get ZK proof from prover service. The service may be temporarily unavailable. Please try again in a few minutes.');
     }
   }
 }

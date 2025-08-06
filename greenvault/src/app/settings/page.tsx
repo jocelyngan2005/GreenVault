@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
+import Navigation from '../../components/Navigation';
 
 export default function SettingsPage() {
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
@@ -51,26 +51,8 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className={`min-h-screen ${theme === 'dark' ? 'bg-black text-white' : 'bg-white text-black'}`}>
-      {/* Header */}
-      <header className={`border-b ${theme === 'dark' ? 'border-white' : 'border-black'}`}>
-        <div className="max-w-6xl mx-auto px-4 py-4">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center gap-6">
-              <Link href="/" className="text-2xl font-bold hover:underline">
-                GreenVault
-              </Link>
-              <nav className="flex gap-4">
-                <Link href="/vault" className="text-sm hover:underline">Vault</Link>
-                <Link href="/marketplace" className="text-sm hover:underline">Marketplace</Link>
-                <Link href="/assets" className="text-sm hover:underline">My Assets</Link>
-                <Link href="/assistant" className="text-sm hover:underline">AI Assistant</Link>
-              </nav>
-            </div>
-            <Link href="/settings" className="text-sm font-medium underline">Settings</Link>
-          </div>
-        </div>
-      </header>
+    <Navigation>
+      <div className={`min-h-screen ${theme === 'dark' ? 'bg-black text-white' : 'bg-white text-black'}`}>
 
       <main className="max-w-4xl mx-auto px-4 py-8">
         <div className="mb-8">
@@ -227,11 +209,12 @@ export default function SettingsPage() {
 
         {/* Back to Dashboard */}
         <div className="mt-8 pt-6 border-t border-gray-200 text-center">
-          <Link href="/vault" className="text-sm hover:underline">
-            ← Back to Vault
-          </Link>
+          <a href="/profile" className="text-sm hover:underline">
+            ← Back to Profile
+          </a>
         </div>
       </main>
-    </div>
+      </div>
+    </Navigation>
   );
 }
