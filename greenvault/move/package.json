@@ -1,0 +1,56 @@
+{
+  "name": "greenvault-smart-contracts",
+  "version": "1.0.0",
+  "description": "GreenVault - Decentralized Carbon Credit and Identity System for Underserved Communities",
+  "main": "scripts/deployment-script.js",
+  "scripts": {
+    "build": "sui move build",
+    "test": "sui move test",
+    "deploy:testnet": "node scripts/production/deployment-script.js testnet",
+    "deploy:mainnet": "node scripts/production/deployment-script.js mainnet",
+    "setup-oracle": "node scripts/production/oracle-setup.js",
+    "test-oracle": "node scripts/testing/test-oracle.js",
+    "health-check": "node scripts/testing/oracle-health-check.js",
+    "integration-test": "node scripts/testing/integration-test.js",
+    "deploy-mock": "node scripts/mock/deploy-mock-oracle.js",
+    "test-mock": "node scripts/mock/mock-test-runner.js",
+    "full-mock-test": "npm run deploy-mock && npm run test-mock",
+    "run-tests": "powershell -ExecutionPolicy Bypass -File test_functions.ps1",
+    "lint": "sui move lint",
+    "validate-env": "node scripts/utils/env-validator.js",
+    "check-network": "node scripts/utils/network-status.js",
+    "check-network-quick": "node scripts/utils/network-status.js --quick",
+    "generate-wallet": "node scripts/utils/wallet-generator.js --random",
+    "generate-dev-env": "node scripts/utils/wallet-generator.js --dev-env",
+    "check-balance": "node scripts/utils/wallet-generator.js --balance",
+    "integrate-oracle": "node scripts/production/greenvault-oracle-integration.js",
+    "oracle-demo": "node scripts/production/greenvault-oracle-integration.js --project-id GREEN_DEMO --project-type reforestation"
+  },
+  "dependencies": {
+    "axios": "^1.11.0",
+    "ethers": "^6.15.0",
+    "dotenv": "^16.4.5",
+    "commander": "^12.0.0"
+  },
+  "devDependencies": {
+    "mocha": "^10.7.0",
+    "chai": "^5.1.1",
+    "@types/node": "^22.5.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/greenvault-contracts"
+  },
+  "keywords": [
+    "blockchain",
+    "carbon-credits",
+    "sustainability",
+    "DID",
+    "underserved-communities",
+    "oracle",
+    "oasis-network",
+    "sui-blockchain"
+  ],
+  "author": "GreenVault Team",
+  "license": "MIT"
+}
