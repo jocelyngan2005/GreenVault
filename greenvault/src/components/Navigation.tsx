@@ -99,7 +99,8 @@ export default function Navigation({ children, theme = 'light' }: NavigationProp
       return [
         { href: '/credit-buyer', label: 'Dashboard' },
         { href: '/credit-buyer/marketplace', label: 'Marketplace' },
-        { href: '/credit-buyer/cart', label: 'Cart', badge: cartCount > 0 ? cartCount : undefined },
+        { href: '/credit-buyer/assets', label: 'My NFTs' },
+        // Cart will be handled separately as a circular icon
       ];
     }
 
@@ -120,7 +121,7 @@ export default function Navigation({ children, theme = 'light' }: NavigationProp
                 GreenVault
               </h1>
               <nav className="flex gap-4">
-                {isMounted && navItems.map(({ href, label, badge }) => (
+                {isMounted && navItems.map(({ href, label }) => (
                   <Link
                     key={href}
                     href={href}
@@ -129,17 +130,44 @@ export default function Navigation({ children, theme = 'light' }: NavigationProp
                     }`}
                   >
                     {label}
-                    {badge && (
-                      <span className="ml-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                        {badge > 99 ? '99+' : badge}
-                      </span>
-                    )}
                   </Link>
                 ))}
               </nav>
             </div>
             <div className="flex items-center gap-4">
               <span className="text-xs text-gray-600">{isMounted ? getUserRoleDisplay() : 'User'}</span>
+              
+              {/* Cart Icon for Credit Buyers */}
+              {isMounted && userRole === 'credit-buyer' && (
+                <Link 
+                  href="/credit-buyer/cart" 
+                  className={`flex items-center justify-center w-8 h-8 rounded-full border ${
+                    theme === 'dark' ? 'border-white' : 'border-black'
+                  } ${isActive('/credit-buyer/cart') ? 'bg-black text-white' : 'hover:bg-black hover:text-white'} transition-colors relative`}
+                  title="Shopping Cart"
+                >
+                  <svg 
+                    width="16" 
+                    height="16" 
+                    viewBox="0 0 24 24" 
+                    fill="none" 
+                    stroke="currentColor" 
+                    strokeWidth="2" 
+                    strokeLinecap="round" 
+                    strokeLinejoin="round"
+                  >
+                    <circle cx="9" cy="21" r="1"></circle>
+                    <circle cx="20" cy="21" r="1"></circle>
+                    <path d="m1 1 4 4 2.2 13.9a2 2 0 0 0 2 1.6h9.5a2 2 0 0 0 2-1.6L23 6H6"></path>
+                  </svg>
+                  {cartCount > 0 && (
+                    <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                      {cartCount > 99 ? '99+' : cartCount}
+                    </span>
+                  )}
+                </Link>
+              )}
+              
               <Link 
                 href="/profile" 
                 className={`flex items-center justify-center w-8 h-8 rounded-full border ${
