@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { findUserByEmail } from '@/lib/serverUserStore';
+import { findUserByEmail } from '@/lib/unifiedUserStore';
 import { getUserDIDStatus } from '@/lib/didUtils';
 import { verifyToken } from '@/lib/auth';
 
