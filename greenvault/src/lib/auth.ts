@@ -2,7 +2,6 @@ import { createHash, randomBytes } from 'crypto';
 import jwt, { SignOptions } from 'jsonwebtoken';
 import type { User, AuthToken } from '@/types/zklogin';
 
-// In production, this should be a secure random string from environment variables
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
   throw new Error('JWT_SECRET environment variable is required');

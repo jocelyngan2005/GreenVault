@@ -26,7 +26,7 @@ export class DIDManager {
     });
     
     if (!process.env.ENCRYPTION_SECRET) {
-      throw new Error('ENCRYPTION_SECRET environment variable is required for DID private key encryption');
+      throw new Error('ENCRYPTION_SECRET environment variable is required for DID private key encryption.');
     }
     this.encryptionSecret = process.env.ENCRYPTION_SECRET;
     console.log(`[did-manager] DIDManager initialized with Sui blockchain (method: did:${this.DID_METHOD})`);
