@@ -1,16 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { suiZkLoginClient } from '@/lib/sui-zklogin';
+import { didManager } from '@/lib/did-manager';
+import { createOrUpdateZkLoginUser, findZkLoginUserBySub } from '@/lib/unifiedUserStore';
 import type { ZkLoginData } from '@/types/zklogin';
 
 export async function POST(request: NextRequest) {
   try {
-    console.log('Starting authentication process...');
+    console.log('[auth] Starting authentication process...');
     
     const body = await request.json();
     const { idToken, preLoginData, userSalt } = body;
 
     if (!idToken || !preLoginData || !userSalt) {
-      console.error('Missing required parameters:', {
+      console.error('[auth] Missing required parameters:', {
         hasIdToken: !!idToken,
         hasPreLoginData: !!preLoginData,
         hasUserSalt: !!userSalt
@@ -21,35 +23,35 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('All required parameters present:', { 
+    console.log('[auth] All required parameters present:', { 
       hasIdToken: !!idToken, 
       hasPreLoginData: !!preLoginData, 
       hasUserSalt: !!userSalt 
     });
 
     // Decode JWT
-    console.log('Decoding JWT...');
+    console.log('[auth] Decoding JWT...');
     const decodedJwt = suiZkLoginClient.decodeJWT(idToken);
-    console.log('JWT decoded successfully:', { 
+    console.log('[auth] JWT decoded successfully:', { 
       sub: decodedJwt.sub, 
       iss: decodedJwt.iss,
       email: decodedJwt.email
     });
 
     // Generate user address
-    console.log('Generating user address with salt:', userSalt);
+    console.log('[auth] Generating user address with salt:', userSalt);
     const zkLoginUserAddress = suiZkLoginClient.generateUserAddress(idToken, userSalt);
-    console.log('User address generated:', zkLoginUserAddress);
+    console.log('[auth] User address generated:', zkLoginUserAddress);
 
     // Get extended ephemeral public key
-    console.log('Getting extended ephemeral public key...');
+    console.log('[auth] Getting extended ephemeral public key...');
     const extendedEphemeralPublicKey = suiZkLoginClient.getExtendedEphemeralPublicKey(
       preLoginData.ephemeralKeyPair.publicKey
     );
-    console.log('Extended ephemeral public key generated');
+    console.log('[auth] Extended ephemeral public key generated');
 
     // Get ZK proof from prover service
-    console.log('Requesting ZK proof from prover...');
+    console.log('[auth] Requesting ZK proof from prover...');
     const zkProof = await suiZkLoginClient.requestZkProof({
       jwt: idToken,
       extendedEphemeralPublicKey,
@@ -58,10 +60,10 @@ export async function POST(request: NextRequest) {
       salt: userSalt,
       keyClaimName: 'sub',
     });
-    console.log('ZK proof received from prover');
+    console.log('[auth] ZK proof received from prover');
 
     // Create zkLogin data object
-    console.log('Creating zkLogin data object...');
+    console.log('[auth] Creating zkLogin data object...');
     const zkLoginData: ZkLoginData = {
       userAddress: zkLoginUserAddress,
       zkProof,
@@ -73,15 +75,64 @@ export async function POST(request: NextRequest) {
       decodedJwt,
     };
 
-    console.log('Wallet address:', zkLoginUserAddress);
-    console.log('zkLogin authentication completed successfully!');
+    // Check and ensure user has a DID for zkLogin
+    console.log('[auth] Checking DID for zkLogin user:', decodedJwt.sub);
+    let didInfo;
+    let isNewDID = true;
+    
+    // Check if user already exists with DID
+    const existingUser = findZkLoginUserBySub(decodedJwt.sub);
+    
+    if (existingUser && existingUser.did) {
+      console.log('[auth] Existing DID found for user:', existingUser.did);
+      didInfo = {
+        did: existingUser.did,
+        document: existingUser.didDocument
+      };
+      isNewDID = false;
+    } else {
+      console.log('[auth] Creating new DID for zkLogin user...');
+      try {
+        didInfo = await didManager.createOrUpdateDIDForZkLogin(zkLoginData);
+        
+        // Store the user with DID in unified storage
+        const savedUser = createOrUpdateZkLoginUser(
+          decodedJwt.sub,
+          decodedJwt.email || '',
+          decodedJwt.name,
+          zkLoginUserAddress,
+          didInfo.did,
+          didInfo.document
+        );
+
+        console.log('[auth] DID created and user saved:', {
+          sub: decodedJwt.sub,
+          email: decodedJwt.email,
+          did: didInfo.did,
+          userAddress: zkLoginUserAddress,
+          savedUser: !!savedUser
+        });
+      } catch (didError) {
+        console.error('[auth] DID operation failed for zkLogin:', didError);
+        // Continue with zkLogin even if DID creation fails
+        console.log('[auth] Continuing zkLogin without DID due to error');
+      }
+    }
+
+    console.log('[auth] Wallet address:', zkLoginUserAddress);
+    console.log('[auth] zkLogin authentication completed successfully!');
 
     return NextResponse.json({
       success: true,
       data: zkLoginData,
+      didInfo: didInfo ? {
+        did: didInfo.did,
+        isNew: isNewDID,
+        document: didInfo.document
+      } : undefined,
     });
   } catch (error) {
-    console.error('OAuth callback error:', error);
+    console.error('[auth] Auth callback error:', error);
     return NextResponse.json(
       {
         success: false,

@@ -3,8 +3,8 @@ import jwt, { SignOptions } from 'jsonwebtoken';
 import type { User, AuthToken } from '@/types/zklogin';
 
 // In production, this should be a secure random string from environment variables
-const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production';
-const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
+const JWT_SECRET = process.env.JWT_SECRET || '7a4642571ac9c1f0f081f11cb6c5bdaa5039fc8f1526d194a6cbe58c1dff3f8a7561e8ed880ac90e3082774ac6fa749aa8a94fcfe717c91d7d91d1037bdfbe28';
+const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
 
 /**
  * Hash a password with salt

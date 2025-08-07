@@ -1,8 +1,7 @@
 import type { User } from '@/types/zklogin';
-import { generateTraditionalWallet } from '@/lib/walletUtils';
+import { generateWallet } from '@/lib/walletUtils';
 
-// In production, this would be replaced with a proper database
-// For demo purposes, we'll use a simple in-memory store with localStorage fallback
+// In-memory store with localStorage fallback
 
 interface UserStore {
   [email: string]: User;
@@ -18,7 +17,7 @@ if (typeof window !== 'undefined') {
       userStore = JSON.parse(stored);
     }
   } catch (error) {
-    console.error('Failed to load users from localStorage:', error);
+    console.error('[userStore] Failed to load users from localStorage:', error);
   }
 }
 
@@ -30,7 +29,7 @@ function saveUsers() {
     try {
       localStorage.setItem('greenvault-users', JSON.stringify(userStore));
     } catch (error) {
-      console.error('Failed to save users to localStorage:', error);
+      console.error('[userStore] Failed to save users to localStorage:', error);
     }
   }
 }
@@ -40,12 +39,12 @@ function saveUsers() {
  */
 export function createUser(email: string, passwordHash: string, name?: string): User {
   const userId = generateUserId();
-  
-  console.log('Creating user with email:', email.toLowerCase());
-  console.log('Generated userId:', userId);
-  
+
+  console.log('[userStore] Creating user with email:', email.toLowerCase());
+  console.log('[userStore] Generated userId:', userId);
+
   // Generate wallet for the user
-  const wallet = generateTraditionalWallet(email, userId);
+  const wallet = generateWallet(email, userId);
   console.log('Generated wallet address:', wallet.address);
   
   const user: User = {
@@ -59,12 +58,12 @@ export function createUser(email: string, passwordHash: string, name?: string): 
   };
 
   userStore[email.toLowerCase()] = user;
-  console.log('User stored in userStore');
-  console.log('Current userStore keys:', Object.keys(userStore));
-  
+  console.log('[userStore] User stored in userStore');
+  console.log('[userStore] Current userStore keys:', Object.keys(userStore));
+
   saveUsers();
-  console.log('User saved to localStorage');
-  
+  console.log('[userStore] User saved to localStorage');
+
   return user;
 }
 
@@ -72,10 +71,10 @@ export function createUser(email: string, passwordHash: string, name?: string): 
  * Find a user by email
  */
 export function findUserByEmail(email: string): User | null {
-  console.log('Finding user by email:', email.toLowerCase());
-  console.log('Available users:', Object.keys(userStore));
+  console.log('[userStore] Finding user by email:', email.toLowerCase());
+  console.log('[userStore] Available users:', Object.keys(userStore));
   const user = userStore[email.toLowerCase()] || null;
-  console.log('Found user:', !!user);
+  console.log('[userStore] Found user:', !!user);
   return user;
 }
 

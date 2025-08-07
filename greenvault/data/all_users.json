@@ -2,9 +2,10 @@
   "abcde@gmail.com": {
     "id": "user_vrj8mfop8me0t8nyp",
     "email": "abcde@gmail.com",
-    "passwordHash": "02bcaf6ef209d4a21d52f9ce4364d70608ea86c6c4b2184748e62b2b3e9168b6:3e99a35e69aa8607fb24d4c2202d277c926174f64f36a647c25adc7f913b1507",
     "name": "abc",
     "createdAt": "2025-08-07T03:01:16.171Z",
+    "authType": "email",
+    "passwordHash": "02bcaf6ef209d4a21d52f9ce4364d70608ea86c6c4b2184748e62b2b3e9168b6:3e99a35e69aa8607fb24d4c2202d277c926174f64f36a647c25adc7f913b1507",
     "walletAddress": "0xb26d20dba27fd72a4d83c82f3ce6ce2be589e45946b502517901058c0fc7ea7d",
     "walletPrivateKey": "c3VpcHJpdmtleTFxemF5Y2x6M2p2Mzd1a2tkMzk0N2ZsaHY1eHoza2d0NTM1eWM2bjZnOTc4NzJqZ2oyam5lN3RqNnllcw==",
     "did": "did:sui:0xb008f12601980aab8094b812cfb039e49155f86b8a1f6db78dd018ec55911d3c",
@@ -43,9 +44,10 @@
   "aaa@gmail.com": {
     "id": "user_ebyxnopw8me0tdl1q",
     "email": "aaa@gmail.com",
-    "passwordHash": "ff0ee0c8a8637e941e0c9da7c74a9ec14f2701b59abebb06bbc0a2880f909fee:ffac43784852a234c2f943f2cabae56564179415f6f3058ae68fba6732b0058f",
     "name": "a",
     "createdAt": "2025-08-07T03:05:05.506Z",
+    "authType": "email",
+    "passwordHash": "ff0ee0c8a8637e941e0c9da7c74a9ec14f2701b59abebb06bbc0a2880f909fee:ffac43784852a234c2f943f2cabae56564179415f6f3058ae68fba6732b0058f",
     "walletAddress": "0xa262c618d2b2acfef3c8531b71f9de85bf72ab5055c5806d75d17da9a26a0b78",
     "walletPrivateKey": "c3VpcHJpdmtleTFxejY2cTN6OHk2ZGs4cWtybnF4cHJwOWszMjByMmd6ZmxwdHRuZG1hN21qcG14YXJzdXU2d2doOGdyOA==",
     "did": "did:sui:0x5298d72db35826a48502ead734c1fc4bf898c40594bbf2ddf8c2cedbdb2e4d57",
@@ -84,9 +86,10 @@
   "cpy@gmail.com": {
     "id": "user_jrxxl3ep9me0ti7h6",
     "email": "cpy@gmail.com",
-    "passwordHash": "f1efb8cc8e9e1bcf683347fb194dd92d8222335d7b378b74ce4992dfe811de4e:d36c69e0a323acca41801ae24620c64f1903227e9ae164b07ae40606bc530741",
     "name": "cpy",
     "createdAt": "2025-08-07T03:08:41.201Z",
+    "authType": "email",
+    "passwordHash": "f1efb8cc8e9e1bcf683347fb194dd92d8222335d7b378b74ce4992dfe811de4e:d36c69e0a323acca41801ae24620c64f1903227e9ae164b07ae40606bc530741",
     "walletAddress": "0x58144ccc84a059ee6a10d29f3c5d9ac32db5821f8ec9394baef85390b667a4c5",
     "walletPrivateKey": "c3VpcHJpdmtleTFxcTZleTJxN3hqaG1sNnE5ZTJjemUyOTA1Mjg4d3NtdHRuem15ZWU2Nnh1dm1zY3AybHhnNjU5ancyNA==",
     "did": "did:sui:0xe919f752b970204e998d3020d5930ced9f4bc0c631a11d6f139baea898892f8f",
@@ -122,12 +125,54 @@
     },
     "didCreatedAt": "2025-08-07T03:08:41.216Z"
   },
+  "109462204890836173254": {
+    "id": "109462204890836173254",
+    "email": "chhpyn.hackathons@gmail.com",
+    "name": "Charmaine",
+    "createdAt": "2025-08-07T03:21:19.464Z",
+    "authType": "zklogin",
+    "userAddress": "0x83db625742e7821bc172eaca30238e6825d25199e6583446d73f83b2f9f38797",
+    "provider": "google",
+    "did": "did:sui:0x421aa962c92a59430cc5dde6b53e9d96bcc7638b5d2b5d28ce4bf2e0548f395a",
+    "didDocument": {
+      "@context": [
+        "https://www.w3.org/ns/did/v1",
+        "https://w3id.org/security/v1"
+      ],
+      "id": "did:sui:0x421aa962c92a59430cc5dde6b53e9d96bcc7638b5d2b5d28ce4bf2e0548f395a",
+      "verificationMethod": [
+        {
+          "id": "did:sui:0x421aa962c92a59430cc5dde6b53e9d96bcc7638b5d2b5d28ce4bf2e0548f395a#key-1",
+          "type": "Ed25519VerificationKey2020",
+          "controller": "did:sui:0x421aa962c92a59430cc5dde6b53e9d96bcc7638b5d2b5d28ce4bf2e0548f395a",
+          "publicKeyBase58": "ABYeM1cD0PoSarT3ZWLaistGPEGNT2XhlrntPKvIQDsN"
+        }
+      ],
+      "authentication": [
+        "did:sui:0x421aa962c92a59430cc5dde6b53e9d96bcc7638b5d2b5d28ce4bf2e0548f395a#key-1"
+      ],
+      "service": [
+        {
+          "id": "did:sui:0x421aa962c92a59430cc5dde6b53e9d96bcc7638b5d2b5d28ce4bf2e0548f395a#zklogin-auth",
+          "type": "ZkLoginAuthentication",
+          "serviceEndpoint": {
+            "userAddress": "0x83db625742e7821bc172eaca30238e6825d25199e6583446d73f83b2f9f38797",
+            "authMethod": "zklogin"
+          }
+        }
+      ],
+      "created": "2025-08-07T03:21:19.460Z",
+      "updated": "2025-08-07T03:21:19.460Z"
+    },
+    "didCreatedAt": "2025-08-07T03:21:19.464Z"
+  },
   "cheah@gmail.com": {
     "id": "user_w6g3g4wwlme0ubo6v",
     "email": "cheah@gmail.com",
-    "passwordHash": "b1a18dc1ea62b2ba2e03954bec88105656d794571e13cae5bbb21fc82f669d02:0791bc7d3373ce11d59b15d680a85d038f7e12b6d2eff3d4f4ea2dd169b895a4",
     "name": "cheah",
     "createdAt": "2025-08-07T03:31:35.887Z",
+    "authType": "email",
+    "passwordHash": "b1a18dc1ea62b2ba2e03954bec88105656d794571e13cae5bbb21fc82f669d02:0791bc7d3373ce11d59b15d680a85d038f7e12b6d2eff3d4f4ea2dd169b895a4",
     "walletAddress": "0x85bbd6ac646c705c869b858ae994dbbff77e4fa4a877de0ca160c8dbef031785",
     "walletPrivateKey": "c3VpcHJpdmtleTFxcXNoczdqNnc4Zm5sOW1odXcwcTNtM3VxZ3RyemhjbGpwdm52a2F4bHRjenB0Z2huOGV5eGN0OHlxeg==",
     "did": "did:sui:0xe201917308800229c15dc0ec8244b3a044d5d62037fe00fe8bdbf302d5e7a7ef",
@@ -161,6 +206,47 @@
       "created": "2025-08-07T03:31:35.900Z",
       "updated": "2025-08-07T03:31:35.900Z"
     },
-    "didCreatedAt": "2025-08-07T03:31:35.912Z"
+    "didCreatedAt": "2025-08-07T03:31:35.910Z"
+  },
+  "101139048585970215815": {
+    "id": "101139048585970215815",
+    "email": "chhpyn@gmail.com",
+    "name": "Charmaine Cheah",
+    "createdAt": "2025-08-07T03:33:40.982Z",
+    "authType": "zklogin",
+    "userAddress": "0x829b3e472f8e5e28b1ff6dd7b65a08fbd3cc00afe6291baf8fa7987aa4272965",
+    "provider": "google",
+    "did": "did:sui:0xfe83ac51cf4b7b0838d840617dfc383902f95a0a7e346b13c6ec464849f70a3e",
+    "didDocument": {
+      "@context": [
+        "https://www.w3.org/ns/did/v1",
+        "https://w3id.org/security/v1"
+      ],
+      "id": "did:sui:0xfe83ac51cf4b7b0838d840617dfc383902f95a0a7e346b13c6ec464849f70a3e",
+      "verificationMethod": [
+        {
+          "id": "did:sui:0xfe83ac51cf4b7b0838d840617dfc383902f95a0a7e346b13c6ec464849f70a3e#key-1",
+          "type": "Ed25519VerificationKey2020",
+          "controller": "did:sui:0xfe83ac51cf4b7b0838d840617dfc383902f95a0a7e346b13c6ec464849f70a3e",
+          "publicKeyBase58": "ACm8pWMVjXdAEs+ivNESyJ6lE4GM0LAIzHllFRVCUyGt"
+        }
+      ],
+      "authentication": [
+        "did:sui:0xfe83ac51cf4b7b0838d840617dfc383902f95a0a7e346b13c6ec464849f70a3e#key-1"
+      ],
+      "service": [
+        {
+          "id": "did:sui:0xfe83ac51cf4b7b0838d840617dfc383902f95a0a7e346b13c6ec464849f70a3e#zklogin-auth",
+          "type": "ZkLoginAuthentication",
+          "serviceEndpoint": {
+            "userAddress": "0x829b3e472f8e5e28b1ff6dd7b65a08fbd3cc00afe6291baf8fa7987aa4272965",
+            "authMethod": "zklogin"
+          }
+        }
+      ],
+      "created": "2025-08-07T03:33:40.977Z",
+      "updated": "2025-08-07T03:33:40.977Z"
+    },
+    "didCreatedAt": "2025-08-07T03:33:40.982Z"
   }
 }
