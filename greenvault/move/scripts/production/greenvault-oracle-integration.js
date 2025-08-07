@@ -1,9 +1,11 @@
 // File: scripts/production/greenvault-oracle-integration.js
 // Integration between Oasis Oracle and GreenVault Sui Contracts
 
-require('dotenv').config();
 const { JsonRpcProvider, Wallet, Contract, formatEther } = require('ethers');
 const axios = require('axios');
+const fs = require('fs');
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '../../../.env') });
 
 class GreenVaultOracleIntegration {
     constructor() {
@@ -471,39 +473,18 @@ class GreenVaultOracleIntegration {
 
     // Helper methods for mock data generation
     generateMockSatelliteData(projectId, projectType) {
-        const baseAmount = projectType === 'reforestation' ? 150 : 
-                          projectType === 'renewable_energy' ? 200 : 100;
-        return {
-            source: 'satellite',
-            co2Amount: baseAmount + Math.floor(Math.random() * 50),
-            confidence: 0.95,
-            coverage: '85%',
-            lastUpdate: Date.now()
-        };
+        const filePath = path.join(__dirname, '../../../mock_data/satellite.json');
+        return JSON.parse(fs.readFileSync(filePath, 'utf8'));
     }
 
     generateMockIoTData(projectId, projectType) {
-        const baseAmount = projectType === 'reforestation' ? 140 : 
-                          projectType === 'renewable_energy' ? 190 : 95;
-        return {
-            source: 'iot_sensors',
-            co2Amount: baseAmount + Math.floor(Math.random() * 40),
-            confidence: 0.88,
-            sensors: 12,
-            lastReading: Date.now()
-        };
+        const filePath = path.join(__dirname, '../../../mock_data/iot.json');
+        return JSON.parse(fs.readFileSync(filePath, 'utf8'));
     }
 
     generateMockRegistryData(projectId, projectType) {
-        const baseAmount = projectType === 'reforestation' ? 145 : 
-                          projectType === 'renewable_energy' ? 195 : 98;
-        return {
-            source: 'carbon_registry',
-            co2Amount: baseAmount + Math.floor(Math.random() * 30),
-            confidence: 0.92,
-            registry: 'Verra_VCS',
-            certificationLevel: 'Gold'
-        };
+        const filePath = path.join(__dirname, '../../../mock_data/carbon_registry.json');
+        return JSON.parse(fs.readFileSync(filePath, 'utf8'));
     }
 
     // Utility methods

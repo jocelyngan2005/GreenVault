@@ -1,7 +1,8 @@
 // File: scripts/oracle-health-check.js
 // Comprehensive health check for Oasis oracle integration
 
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '../../../.env') });
 const OasisOracle = require('../production/oasis-integration');
 
 class OracleHealthChecker {

@@ -1,7 +1,8 @@
 // File: scripts/oracle-setup.js
 // Deploy and configure Oracle contract on Oasis Network
 
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '../../../.env') });
 const { ethers } = require('ethers');
 
 class OracleSetup {
@@ -83,7 +84,7 @@ class OracleSetup {
         const path = require('path');
         
         try {
-            const envPath = path.join(__dirname, '../../.env'); // Go up two levels to root
+            const envPath = path.join(__dirname, '../../../.env'); // Go up two levels to root
             let envContent = '';
             
             // Read existing .env file or create new one

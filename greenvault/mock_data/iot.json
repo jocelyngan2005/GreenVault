@@ -1,0 +1,7 @@
+{
+  "source": "iot_sensors",
+  "co2Amount": 172,
+  "confidence": 0.78,
+  "sensors": 12,
+  "lastReading": 1754492288817
+}
