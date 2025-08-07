@@ -26,7 +26,7 @@ module greenvault::oracle_integration {
     const DATA_TYPE_WASTE_REDUCTION: u8 = 3;
 
     // Oracle Registry
-    struct OracleRegistry has key {
+    public struct OracleRegistry has key {
         id: UID,
         admin: address,
         authorized_oracles: Table<address, OracleInfo>,
@@ -34,7 +34,7 @@ module greenvault::oracle_integration {
         minimum_confirmations: u64,
     }
 
-    struct OracleInfo has store {
+    public struct OracleInfo has store {
         oracle_address: address,
         reputation_score: u64,
         total_submissions: u64,
@@ -43,7 +43,7 @@ module greenvault::oracle_integration {
         active: bool,
     }
 
-    struct DataFeed has store {
+    public struct DataFeed has store {
         feed_id: String,
         data_type: u8,
         latest_value: u64,
@@ -55,7 +55,7 @@ module greenvault::oracle_integration {
     }
 
     // CO2 Verification Request
-    struct CO2VerificationRequest has key {
+    public struct CO2VerificationRequest has key {
         id: UID,
         project_id: String,
         requester: address,
@@ -67,7 +67,7 @@ module greenvault::oracle_integration {
         verified_at: Option<u64>,
     }
 
-    struct DataPoint has store {
+    public struct DataPoint has store {
         measurement_type: String, // "co2_sequestered", "energy_generated", etc.
         value: u64,
         unit: String,
@@ -77,7 +77,7 @@ module greenvault::oracle_integration {
     }
 
     // Oracle Submission
-    struct OracleSubmission has store, drop {
+    public struct OracleSubmission has store, drop {
         oracle: address,
         verified_value: u64,
         confidence: u64,
@@ -86,21 +86,21 @@ module greenvault::oracle_integration {
     }
 
     // Events
-    struct DataFeedUpdated has copy, drop {
+    public struct DataFeedUpdated has copy, drop {
         feed_id: String,
         new_value: u64,
         confirmations: u64,
         timestamp: u64,
     }
 
-    struct VerificationCompleted has copy, drop {
+    public struct VerificationCompleted has copy, drop {
         request_id: ID,
         project_id: String,
         verified: bool,
         final_value: u64,
     }
 
-    struct OracleSlashed has copy, drop {
+    public struct OracleSlashed has copy, drop {
         oracle: address,
         reason: String,
         slashed_amount: u64,

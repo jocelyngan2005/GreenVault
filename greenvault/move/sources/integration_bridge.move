@@ -20,7 +20,7 @@ module greenvault::integration_bridge {
     use greenvault::fractional_credits::{Self, MicroCreditSystem};
 
     // Central coordination hub
-    struct GreenVaultHub has key {
+    public struct GreenVaultHub has key {
         id: UID,
         admin: address,
         carbon_registry_id: ID,
@@ -32,7 +32,7 @@ module greenvault::integration_bridge {
         cross_module_permissions: Table<address, Permissions>,
     }
 
-    struct IntegrationStats has store {
+    public struct IntegrationStats has store {
         total_verified_projects: u64,
         total_community_members: u64,
         total_micro_actions: u64,
@@ -40,7 +40,7 @@ module greenvault::integration_bridge {
         fractional_trades: u64,
     }
 
-    struct Permissions has store, drop {
+    public struct Permissions has store, drop {
         can_verify_projects: bool,
         can_process_oracle_data: bool,
         can_validate_community: bool,
@@ -49,7 +49,7 @@ module greenvault::integration_bridge {
     }
 
     // Complete project lifecycle event
-    struct ProjectLifecycleCompleted has copy, drop {
+    public struct ProjectLifecycleCompleted has copy, drop {
         project_id: String,
         developer: address,
         total_credits_issued: u64,
@@ -174,7 +174,7 @@ module greenvault::integration_bridge {
                 string::utf8(b"basic_recycling"),
                 string::utf8(b"water_conservation")
             ];
-            let i = 0;
+            let mut i = 0;
             while (i < 3) {
                 fractional_credits::setup_action_rewards(
                     micro_system,
