@@ -180,33 +180,7 @@ export default function ProjectOwnerDashboard() {
           </div>
         </div>
 
-        {/* Getting Started Guide */}
-        <div className="mt-12 border border-black p-6">
-          <h2 className="text-xl font-bold mb-4">Getting Started</h2>
-          <div className="grid md:grid-cols-3 gap-6">
-            <div className="text-center">
-              <div className="text-3xl mb-2">📝</div>
-              <h3 className="font-semibold mb-2">1. Register Project</h3>
-              <p className="text-sm text-gray-600">
-                Submit details about your carbon offset project, including location, type, and expected impact.
-              </p>
-            </div>
-            <div className="text-center">
-              <div className="text-3xl mb-2">✅</div>
-              <h3 className="font-semibold mb-2">2. Get Verified</h3>
-              <p className="text-sm text-gray-600">
-                Our verification process ensures your project meets international standards.
-              </p>
-            </div>
-            <div className="text-center">
-              <div className="text-3xl mb-2">💰</div>
-              <h3 className="font-semibold mb-2">3. Mint & Sell</h3>
-              <p className="text-sm text-gray-600">
-                Mint NFTs representing your credits and list them on the marketplace.
-              </p>
-            </div>
-          </div>
-        </div>
+        
       </main>
 
       {/* New Project Modal */}

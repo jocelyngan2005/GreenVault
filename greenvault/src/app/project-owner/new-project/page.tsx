@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Navigation from '@/components/Navigation';
 
@@ -39,6 +39,8 @@ export default function NewProjectPage() {
 
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showAIAssistant, setShowAIAssistant] = useState(false);
+  const [assistantMessage, setAssistantMessage] = useState('');
 
   const projectTypes = [
     'Forest Conservation',
@@ -97,6 +99,33 @@ export default function NewProjectPage() {
   };
 
   const getStepProgress = () => (currentStep / 4) * 100;
+
+  const handleSendMessage = () => {
+    if (assistantMessage.trim()) {
+      // Here you would typically send the message to your AI service
+      console.log('Sending message:', assistantMessage);
+      setAssistantMessage('');
+    }
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
+    }
+  };
+
+  useEffect(() => {
+    // Handle escape key to close AI assistant
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && showAIAssistant) {
+        setShowAIAssistant(false);
+      }
+    };
+
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [showAIAssistant]);
 
   return (
     <Navigation>
@@ -416,6 +445,113 @@ export default function NewProjectPage() {
           </div>
         </form>
       </main>
+
+      {/* Floating AI Assistant Button */}
+      <button
+        onClick={() => setShowAIAssistant(true)}
+        className="fixed bottom-6 right-6 w-14 h-14 rounded-full bg-black text-white shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 flex items-center justify-center z-40"
+        title="Project AI Assistant"
+      >
+        <svg 
+          width="24" 
+          height="24" 
+          viewBox="0 0 24 24" 
+          fill="none" 
+          stroke="currentColor" 
+          strokeWidth="2" 
+          strokeLinecap="round" 
+          strokeLinejoin="round"
+        >
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+          <path d="M13 8H7"></path>
+          <path d="M17 12H7"></path>
+        </svg>
+      </button>
+
+      {/* AI Assistant Overlay */}
+      {showAIAssistant && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white text-black border-2 border-black rounded-lg max-w-2xl w-full max-h-[80vh] flex flex-col">
+            {/* Header */}
+            <div className="flex justify-between items-center p-4 border-b border-black">
+              <h2 className="text-xl font-bold">Project AI Assistant</h2>
+              <button
+                onClick={() => setShowAIAssistant(false)}
+                className="w-8 h-8 rounded-full border border-black hover:bg-black hover:text-white flex items-center justify-center transition-colors"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto p-4">
+              <div className="space-y-4">
+                <div className="p-4 rounded-lg bg-gray-50">
+                  <h3 className="font-semibold mb-2">🌱 Project Creation Assistant</h3>
+                  <p className="text-sm opacity-80">
+                    I can help you optimize your project registration, suggest verification standards, estimate carbon impact, and guide you through best practices.
+                  </p>
+                </div>
+
+                {/* Sample conversation */}
+                <div className="space-y-3">
+                  <div className="p-3 rounded-lg bg-blue-50 ml-8">
+                    <p className="text-sm">What verification standard should I choose for my forest conservation project?</p>
+                  </div>
+                  
+                  <div className="p-3 rounded-lg bg-gray-100 mr-8">
+                    <p className="text-sm">
+                      For forest conservation projects, I recommend:
+                      <br />• <strong>VCS (Verified Carbon Standard)</strong> - Most widely accepted, good for REDD+ projects
+                      <br />• <strong>Plan Vivo</strong> - Excellent for community-focused projects
+                      <br />• <strong>Gold Standard</strong> - Higher premium, strong social co-benefits focus
+                    </p>
+                  </div>
+
+                  <div className="p-3 rounded-lg bg-blue-50 ml-8">
+                    <p className="text-sm">How do I calculate the CO₂ impact accurately?</p>
+                  </div>
+                  
+                  <div className="p-3 rounded-lg bg-gray-100 mr-8">
+                    <p className="text-sm">
+                      For accurate CO₂ calculations:
+                      <br />• Use satellite monitoring data for baseline measurements
+                      <br />• Apply appropriate emission factors for your region
+                      <br />• Consider permanence risks and buffer requirements
+                      <br />• Factor in leakage prevention measures
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Input area */}
+            <div className="p-4 border-t border-black">
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={assistantMessage}
+                  onChange={(e) => setAssistantMessage(e.target.value)}
+                  onKeyPress={handleKeyPress}
+                  placeholder="Ask me about project standards, carbon calculations, verification..."
+                  className="flex-1 px-3 py-2 border border-black bg-white text-black placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-black"
+                  autoFocus
+                />
+                <button 
+                  onClick={handleSendMessage}
+                  disabled={!assistantMessage.trim()}
+                  className="px-4 py-2 bg-black text-white hover:bg-gray-800 disabled:bg-gray-300 disabled:text-gray-500 transition-colors disabled:cursor-not-allowed"
+                >
+                  Send
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </Navigation>
   );
 }

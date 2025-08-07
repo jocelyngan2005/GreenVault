@@ -92,7 +92,6 @@ export default function Navigation({ children, theme = 'light' }: NavigationProp
     if (userRole === 'project-owner') {
       return [
         { href: '/project-owner', label: 'Dashboard' },
-        { href: '/project-owner/new-project', label: 'New Project' },
         { href: '/project-owner/marketplace', label: 'Marketplace' },
         ...baseItems.slice(1) // Skip general marketplace, use project-owner specific
       ];
@@ -117,9 +116,9 @@ export default function Navigation({ children, theme = 'light' }: NavigationProp
         <div className="max-w-6xl mx-auto px-4 py-4">
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-6">
-              <Link href="/" className="text-2xl font-bold hover:underline">
+              <h1 className="text-2xl font-bold">
                 GreenVault
-              </Link>
+              </h1>
               <nav className="flex gap-4">
                 {isMounted && navItems.map(({ href, label, badge }) => (
                   <Link

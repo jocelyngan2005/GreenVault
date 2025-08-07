@@ -252,33 +252,7 @@ export default function ProjectOwnerMarketplace() {
           ))}
         </div>
 
-        {/* Educational Section */}
-        <div className="mt-12 border border-black p-6">
-          <h2 className="text-xl font-bold mb-4">Learn from Successful Projects</h2>
-          <div className="grid md:grid-cols-3 gap-6">
-            <div className="text-center">
-              <div className="text-3xl mb-2">📋</div>
-              <h3 className="font-semibold mb-2">Project Documentation</h3>
-              <p className="text-sm text-gray-600">
-                Study how successful projects document their environmental impact and community benefits.
-              </p>
-            </div>
-            <div className="text-center">
-              <div className="text-3xl mb-2">💰</div>
-              <h3 className="font-semibold mb-2">Pricing Strategies</h3>
-              <p className="text-sm text-gray-600">
-                Understand market pricing for different types of carbon offset projects.
-              </p>
-            </div>
-            <div className="text-center">
-              <div className="text-3xl mb-2">🤝</div>
-              <h3 className="font-semibold mb-2">Community Engagement</h3>
-              <p className="text-sm text-gray-600">
-                Learn how successful projects engage and benefit local communities.
-              </p>
-            </div>
-          </div>
-        </div>
+        
       </main>
     </Navigation>
   );

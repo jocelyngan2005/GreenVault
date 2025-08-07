@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import Navigation from '@/components/Navigation';
 
 interface Secret {
@@ -22,6 +23,7 @@ interface UserProfile {
 }
 
 export default function ProfilePage() {
+  const router = useRouter();
   const [userProfile, setUserProfile] = useState<UserProfile>({
     name: 'John Doe',
     email: 'john.doe@example.com',
@@ -133,6 +135,29 @@ export default function ProfilePage() {
 
   const handleExportData = () => {
     alert('Data export feature would download your encrypted vault data for backup purposes.');
+  };
+
+  const handleLogout = () => {
+    const confirmed = confirm('Are you sure you want to logout? You will need to sign in again to access your account.');
+    if (confirmed) {
+      // Clear user data from localStorage (but preserve user-role)
+      const userRole = localStorage.getItem('user-role'); // Save the role
+      localStorage.removeItem('user-token');
+      localStorage.removeItem('cart-items');
+      localStorage.removeItem('zklogin-user');
+      localStorage.removeItem('user-session');
+      
+      // Clear any session storage
+      sessionStorage.clear();
+      
+      // Restore the user role so they don't have to choose again
+      if (userRole) {
+        localStorage.setItem('user-role', userRole);
+      }
+      
+      // Redirect to landing page using Next.js router
+      router.push('/');
+    }
   };
 
   const getRoleDisplayName = () => {
@@ -258,6 +283,12 @@ export default function ProfilePage() {
                       </button>
                       <button className="text-sm bg-white text-black px-4 py-2 border border-black hover:bg-black hover:text-white transition-colors">
                         Export Data
+                      </button>
+                      <button 
+                        onClick={handleLogout}
+                        className="text-sm bg-red-600 text-white px-4 py-2 border border-red-600 hover:bg-white hover:text-red-600 transition-colors"
+                      >
+                        Logout
                       </button>
                     </div>
                   </div>
@@ -385,6 +416,22 @@ export default function ProfilePage() {
                       </button>
                     </div>
                   )}
+                </div>
+
+                <div>
+                  <h4 className="font-medium mb-2">Account Security</h4>
+                  <p className="text-sm mb-4 text-gray-600">
+                    Secure your account and manage your session.
+                  </p>
+                  
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleLogout}
+                      className="bg-red-600 text-white px-4 py-2 border border-red-600 hover:bg-white hover:text-red-600 transition-colors"
+                    >
+                      Logout from All Devices
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>

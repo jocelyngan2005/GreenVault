@@ -80,5 +80,46 @@
       "updated": "2025-08-07T14:50:28.459Z"
     },
     "didCreatedAt": "2025-08-07T14:50:28.460Z"
+  },
+  "108029356359445529044": {
+    "id": "108029356359445529044",
+    "email": "jocelynganxy@gmail.com",
+    "name": "Jocelyn Gan",
+    "createdAt": "2025-08-07T18:43:20.386Z",
+    "authType": "zklogin",
+    "userAddress": "0x3eb759985a76a1fdaf659fc21454a8a7245eed97098a1c20187ae9e5dc20733c",
+    "provider": "google",
+    "did": "did:sui:0x91fd9bab0dbe2b1555a0700fea9404740081b179c2529dedb9532816466f281a",
+    "didDocument": {
+      "@context": [
+        "https://www.w3.org/ns/did/v1",
+        "https://w3id.org/security/v1"
+      ],
+      "id": "did:sui:0x91fd9bab0dbe2b1555a0700fea9404740081b179c2529dedb9532816466f281a",
+      "verificationMethod": [
+        {
+          "id": "did:sui:0x91fd9bab0dbe2b1555a0700fea9404740081b179c2529dedb9532816466f281a#key-1",
+          "type": "Ed25519VerificationKey2020",
+          "controller": "did:sui:0x91fd9bab0dbe2b1555a0700fea9404740081b179c2529dedb9532816466f281a",
+          "publicKeyBase58": "AEcUrNw7mNhjVMK+L9RUOIW+B+meO/+B4oLqx9Xep5VO"
+        }
+      ],
+      "authentication": [
+        "did:sui:0x91fd9bab0dbe2b1555a0700fea9404740081b179c2529dedb9532816466f281a#key-1"
+      ],
+      "service": [
+        {
+          "id": "did:sui:0x91fd9bab0dbe2b1555a0700fea9404740081b179c2529dedb9532816466f281a#zklogin-auth",
+          "type": "ZkLoginAuthentication",
+          "serviceEndpoint": {
+            "userAddress": "0x3eb759985a76a1fdaf659fc21454a8a7245eed97098a1c20187ae9e5dc20733c",
+            "authMethod": "zklogin"
+          }
+        }
+      ],
+      "created": "2025-08-07T18:43:20.385Z",
+      "updated": "2025-08-07T18:43:20.385Z"
+    },
+    "didCreatedAt": "2025-08-07T18:43:20.386Z"
   }
 }
