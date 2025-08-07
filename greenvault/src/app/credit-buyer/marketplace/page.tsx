@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Navigation from '@/components/Navigation';
+import { cartUtils } from '@/lib/cartUtils';
 
 interface CarbonCredit {
   id: string;
@@ -93,22 +94,45 @@ export default function CreditBuyerMarketplace() {
   const [priceRange, setPriceRange] = useState([0, 50]);
   const [sortBy, setSortBy] = useState('price-low');
   const [showFilters, setShowFilters] = useState(false);
-  const [cart, setCart] = useState<{[key: string]: number}>({});
+  const [cartSummary, setCartSummary] = useState({ itemCount: 0, totalAmount: 0, totalCO2: 0 });
+
+  useEffect(() => {
+    // Initialize cart summary
+    setCartSummary(cartUtils.getCartSummary());
+
+    // Listen for cart updates
+    const handleCartUpdate = () => {
+      setCartSummary(cartUtils.getCartSummary());
+    };
+
+    window.addEventListener('cartUpdated', handleCartUpdate);
+    
+    return () => {
+      window.removeEventListener('cartUpdated', handleCartUpdate);
+    };
+  }, []);
 
   const projectTypes = ['All', 'Forest Conservation', 'Renewable Energy', 'Ecosystem Restoration', 'Clean Cooking', 'Agriculture'];
 
-  const addToCart = (creditId: string, amount: number) => {
-    setCart(prev => ({
-      ...prev,
-      [creditId]: (prev[creditId] || 0) + amount
-    }));
-  };
+  const addToCart = (credit: CarbonCredit, quantity: number = 1) => {
+    const success = cartUtils.addToCart({
+      id: credit.id,
+      projectName: credit.projectName,
+      owner: credit.owner,
+      co2Amount: credit.co2Amount,
+      pricePerTon: credit.pricePerTon,
+      location: credit.location,
+      projectType: credit.projectType,
+      description: credit.description,
+      verified: credit.verified
+    }, quantity);
 
-  const getTotalCartValue = () => {
-    return Object.entries(cart).reduce((total, [creditId, amount]) => {
-      const credit = credits.find(c => c.id === creditId);
-      return total + (credit ? credit.pricePerTon * amount : 0);
-    }, 0);
+    if (success) {
+      // Show success feedback
+      alert(`Added ${quantity} credit(s) from ${credit.projectName} to cart!`);
+    } else {
+      alert('Failed to add item to cart. Please try again.');
+    }
   };
 
   const filteredAndSortedCredits = credits
@@ -297,7 +321,7 @@ export default function CreditBuyerMarketplace() {
                       className="flex-1 p-2 border border-gray-300 text-sm"
                     />
                     <button
-                      onClick={() => addToCart(credit.id, 1)}
+                      onClick={() => addToCart(credit, 1)}
                       className="bg-green-600 text-white px-4 py-2 text-sm hover:bg-green-700 transition-colors"
                     >
                       Add to Cart
@@ -322,19 +346,25 @@ export default function CreditBuyerMarketplace() {
         </div>
 
         {/* Cart Summary */}
-        {Object.keys(cart).length > 0 && (
+        {cartSummary.itemCount > 0 && (
           <div className="fixed bottom-4 right-4 bg-black text-white p-4 border border-black max-w-sm">
             <h3 className="font-bold mb-2">Cart Summary</h3>
             <p className="text-sm mb-3">
-              {Object.keys(cart).length} items • Total: ${getTotalCartValue().toFixed(2)}
+              {cartSummary.itemCount} items • Total: ${cartSummary.totalAmount.toFixed(2)}
             </p>
             <div className="flex gap-2">
-              <button className="flex-1 bg-white text-black py-2 px-3 text-sm hover:bg-gray-200 transition-colors">
+              <Link
+                href="/credit-buyer/cart"
+                className="flex-1 bg-white text-black py-2 px-3 text-sm hover:bg-gray-200 transition-colors text-center"
+              >
                 View Cart
-              </button>
-              <button className="flex-1 bg-green-600 text-white py-2 px-3 text-sm hover:bg-green-700 transition-colors">
+              </Link>
+              <Link
+                href="/credit-buyer/cart"
+                className="flex-1 bg-green-600 text-white py-2 px-3 text-sm hover:bg-green-700 transition-colors text-center"
+              >
                 Checkout
-              </button>
+              </Link>
             </div>
           </div>
         )}

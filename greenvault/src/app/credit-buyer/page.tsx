@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Navigation from '@/components/Navigation';
 
@@ -33,6 +33,7 @@ interface CarbonCredit {
 }
 
 export default function CreditBuyerDashboard() {
+  const [isMounted, setIsMounted] = useState(false);
   const [currentGoal, setCurrentGoal] = useState<CarbonGoal>({
     id: '1',
     targetAmount: 5,
@@ -90,6 +91,10 @@ export default function CreditBuyerDashboard() {
   const progressPercentage = (currentGoal.currentAmount / currentGoal.targetAmount) * 100;
   const remainingAmount = currentGoal.targetAmount - currentGoal.currentAmount;
   const totalSpent = recentPurchases.reduce((sum, purchase) => sum + (purchase.amount * purchase.price), 0);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const updateGoal = () => {
     setCurrentGoal({
@@ -157,42 +162,7 @@ export default function CreditBuyerDashboard() {
           </div>
         </div>
 
-        {/* Quick Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          <Link
-            href="/credit-buyer/marketplace"
-            className="border border-black p-6 hover:bg-gray-50 transition-colors"
-          >
-            <div className="text-center">
-              <div className="text-3xl mb-2">🛒</div>
-              <h3 className="font-semibold mb-2">Browse Marketplace</h3>
-              <p className="text-sm text-gray-600">Find verified carbon credits to purchase</p>
-            </div>
-          </Link>
-          
-          <Link
-            href="/credit-buyer/assistant"
-            className="border border-black p-6 hover:bg-gray-50 transition-colors"
-          >
-            <div className="text-center">
-              <div className="text-3xl mb-2">🤖</div>
-              <h3 className="font-semibold mb-2">AI Assistant</h3>
-              <p className="text-sm text-gray-600">Get personalized offset recommendations</p>
-            </div>
-          </Link>
-          
-          <Link
-            href="/credit-buyer/calculator"
-            className="border border-black p-6 hover:bg-gray-50 transition-colors"
-          >
-            <div className="text-center">
-              <div className="text-3xl mb-2">📊</div>
-              <h3 className="font-semibold mb-2">Carbon Calculator</h3>
-              <p className="text-sm text-gray-600">Calculate your carbon footprint</p>
-            </div>
-          </Link>
-        </div>
-
+       
         {/* Recommended Credits */}
         <div className="mb-8">
           <div className="flex justify-between items-center mb-4">

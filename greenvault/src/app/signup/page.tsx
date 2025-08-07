@@ -6,7 +6,6 @@ import type { SignupCredentials, AuthResponse, ZkLoginData, ZkLoginState } from 
 
 // Google OAuth configuration
 const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
-const REDIRECT_URI = `${process.env.NEXT_PUBLIC_APP_URL_SIGNUP || 'http://localhost:3000'}`;
 
 export default function SignupPage() {
   const [isLoading, setIsLoading] = useState(false);
@@ -22,9 +21,18 @@ export default function SignupPage() {
   const [step, setStep] = useState<'initial' | 'processing' | 'success' | 'error'>('initial');
   const [zkLoginData, setZkLoginData] = useState<ZkLoginData | null>(null);
   const [userAddress, setUserAddress] = useState('');
+  const [isMounted, setIsMounted] = useState(false);
+
+  // Ensure client-side mounting
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   // Check for OAuth callback on component mount
   useEffect(() => {
+    // Ensure this only runs on client side
+    if (typeof window === 'undefined') return;
+
     const handleOAuthCallback = async (idToken: string) => {
       try {
         setIsGoogleLoading(true);
@@ -105,9 +113,10 @@ export default function SignupPage() {
   }, []);
 
   const generateGoogleAuthUrl = (nonce: string) => {
+    const redirectUri = process.env.NEXT_PUBLIC_APP_URL_SIGNUP || 'http://localhost:3000/signup';
     const authUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
     authUrl.searchParams.set('client_id', GOOGLE_CLIENT_ID || '');
-    authUrl.searchParams.set('redirect_uri', REDIRECT_URI || '');
+    authUrl.searchParams.set('redirect_uri', redirectUri);
     authUrl.searchParams.set('response_type', 'id_token');
     authUrl.searchParams.set('scope', 'openid email profile');
     authUrl.searchParams.set('nonce', nonce);
@@ -243,7 +252,12 @@ export default function SignupPage() {
             </p>
           </div>
 
-          {step === 'processing' && !showEmailForm ? (
+          {!isMounted ? (
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-black mx-auto"></div>
+              <p className="mt-2 text-gray-600">Loading...</p>
+            </div>
+          ) : step === 'processing' && !showEmailForm ? (
             // Processing zkLogin
             <div className="text-center space-y-6">
               <div className="flex justify-center">

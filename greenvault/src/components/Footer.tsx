@@ -15,8 +15,6 @@ export default function Footer({ theme = 'light' }: FooterProps) {
           <div className="flex gap-4 mt-4 md:mt-0">
             <Link href="/vault" className="text-sm hover:underline">Vault</Link>
             <Link href="/marketplace" className="text-sm hover:underline">Marketplace</Link>
-            <Link href="/assistant" className="text-sm hover:underline">AI Assistant</Link>
-            <Link href="/settings" className="text-sm hover:underline">Settings</Link>
           </div>
         </div>
         <div className={`mt-4 pt-4 border-t ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}>

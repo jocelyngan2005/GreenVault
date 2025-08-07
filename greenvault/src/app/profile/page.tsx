@@ -63,10 +63,16 @@ export default function ProfilePage() {
   const [decryptPassword, setDecryptPassword] = useState('');
   const [decryptingId, setDecryptingId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'profile' | 'vault'>('profile');
+  const [showRecoveryPhrase, setShowRecoveryPhrase] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
+
+  const mockRecoveryPhrase = 'secure vault recovery phrase would appear here after authentication';
+  const mockDID = 'did:example:123456789abcdefghi';
 
   const categories = ['All', 'Personal', 'Development', 'Financial', 'Social'];
 
   useEffect(() => {
+    setIsMounted(true);
     // Get user role from localStorage
     const role = localStorage.getItem('user-role') as 'project-owner' | 'credit-buyer' | null;
     setUserProfile(prev => ({ ...prev, role }));
@@ -116,6 +122,17 @@ export default function ProfilePage() {
     };
     setSecrets(prev => [...prev, newSecret]);
     setShowAddForm(false);
+  };
+
+  const handleVaultRecovery = () => {
+    const confirmed = confirm('This will show your vault recovery phrase. Make sure you are in a secure location.');
+    if (confirmed) {
+      setShowRecoveryPhrase(true);
+    }
+  };
+
+  const handleExportData = () => {
+    alert('Data export feature would download your encrypted vault data for backup purposes.');
   };
 
   const getRoleDisplayName = () => {
@@ -209,8 +226,8 @@ export default function ProfilePage() {
                       <label className="block text-sm text-gray-600">User Role</label>
                       <div className="flex items-center gap-2 p-2 bg-gray-50 border border-gray-300">
                         <span>{getRoleIcon()}</span>
-                        <span>{getRoleDisplayName()}</span>
-                        {!userProfile.role && (
+                        <span>{isMounted ? getRoleDisplayName() : 'Loading...'}</span>
+                        {isMounted && !userProfile.role && (
                           <a href="/role-selection" className="text-blue-600 hover:underline text-sm ml-2">
                             Set Role
                           </a>
@@ -249,7 +266,7 @@ export default function ProfilePage() {
             </div>
 
             {/* Role-Specific Information */}
-            {userProfile.role && (
+            {isMounted && userProfile.role && (
               <div className="border border-black p-6">
                 <h3 className="font-semibold mb-4">
                   {userProfile.role === 'project-owner' ? 'Project Owner Dashboard' : 'Credit Buyer Dashboard'}
@@ -313,6 +330,63 @@ export default function ProfilePage() {
               >
                 + Add New
               </button>
+            </div>
+
+            {/* Vault Security Section */}
+            <div className="border border-black p-6">
+              <h3 className="text-xl font-bold mb-4">Vault Security & Recovery</h3>
+              <div className="space-y-4">
+                <div>
+                  <h4 className="font-medium mb-2">Digital Identity (DID)</h4>
+                  <div className="p-3 font-mono text-sm border border-black bg-gray-50 mb-2">
+                    {mockDID}
+                  </div>
+                  <p className="text-xs text-gray-500 mb-4">
+                    Your unique decentralized identifier
+                  </p>
+                </div>
+
+                <div>
+                  <h4 className="font-medium mb-2">Recovery Options</h4>
+                  <p className="text-sm mb-4 text-gray-600">
+                    Your vault is encrypted and stored on Walrus & Seal network. Use these options to backup or recover your data.
+                  </p>
+                  
+                  <div className="flex gap-2 mb-4">
+                    <button
+                      onClick={handleVaultRecovery}
+                      className="bg-black text-white px-4 py-2 border border-black hover:bg-white hover:text-black transition-colors"
+                    >
+                      Show Recovery Phrase
+                    </button>
+                    
+                    <button
+                      onClick={handleExportData}
+                      className="bg-white text-black px-4 py-2 border border-black hover:bg-black hover:text-white transition-colors"
+                    >
+                      Export Vault Data
+                    </button>
+                  </div>
+
+                  {showRecoveryPhrase && (
+                    <div className="border border-yellow-600 bg-yellow-50 p-4">
+                      <h4 className="font-bold mb-2">⚠️ Recovery Phrase</h4>
+                      <div className="p-3 font-mono text-sm border border-gray-300 bg-white">
+                        {mockRecoveryPhrase}
+                      </div>
+                      <p className="text-xs mt-2 text-yellow-700">
+                        Store this phrase securely. Anyone with access to it can recover your vault.
+                      </p>
+                      <button
+                        onClick={() => setShowRecoveryPhrase(false)}
+                        className="mt-2 text-sm hover:underline"
+                      >
+                        Hide Recovery Phrase
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
 
             {/* Categories Filter */}

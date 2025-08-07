@@ -7,7 +7,6 @@ import Link from 'next/link';
 
 // Google OAuth configuration
 const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
-const REDIRECT_URI = `${process.env.NEXT_PUBLIC_APP_URL_LOGIN || 'http://localhost:3000'}`;
 
 export default function LoginPage() {
   const [isEmailLoading, setIsEmailLoading] = useState(false);
@@ -21,9 +20,18 @@ export default function LoginPage() {
   const [showEmailForm, setShowEmailForm] = useState(false);
   const [walletAddress, setWalletAddress] = useState('');
   const [showWalletInfo, setShowWalletInfo] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
+
+  // Ensure client-side mounting
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   // Check for OAuth callback on component mount
   useEffect(() => {
+    // Ensure this only runs on client side
+    if (typeof window === 'undefined') return;
+
     const handleOAuthCallback = async (idToken: string) => {
       try {
         setIsGoogleLoading(true);
@@ -112,9 +120,10 @@ export default function LoginPage() {
   }, []);
 
   const generateGoogleAuthUrl = (nonce: string) => {
+    const redirectUri = process.env.NEXT_PUBLIC_APP_URL_LOGIN || 'http://localhost:3000/login';
     const authUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
     authUrl.searchParams.set('client_id', GOOGLE_CLIENT_ID || '');
-    authUrl.searchParams.set('redirect_uri', REDIRECT_URI || '');
+    authUrl.searchParams.set('redirect_uri', redirectUri);
     authUrl.searchParams.set('response_type', 'id_token');
     authUrl.searchParams.set('scope', 'openid email profile');
     authUrl.searchParams.set('nonce', nonce);
@@ -253,7 +262,12 @@ export default function LoginPage() {
             </p>
           </div>
 
-          {showEmailForm ? (
+          {!isMounted ? (
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-black mx-auto"></div>
+              <p className="mt-2 text-gray-600">Loading...</p>
+            </div>
+          ) : showEmailForm ? (
             <form onSubmit={handleEmailLogin} className="space-y-4">
               <div>
                 <label htmlFor="email" className="block text-sm font-medium mb-2">
