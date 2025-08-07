@@ -22,6 +22,6 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", "d:/WORKSPACE/DEVMATCH2025/GreenVault/greenvault/src/modules/did/lib/did-manager.ts", "d:/WORKSPACE/DEVMATCH2025/GreenVault/greenvault/src/modules/did/lib/sui-did-method.ts"],
   "exclude": ["node_modules"]
 }

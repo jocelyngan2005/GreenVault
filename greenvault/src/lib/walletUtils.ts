@@ -4,20 +4,20 @@ import { createHash } from 'crypto';
 /**
  * Generate a deterministic Sui wallet address for traditional email/password users
  */
-export function generateTraditionalWallet(email: string, userId: string): {
+export function generateWallet(email: string, userId: string): {
   address: string;
   privateKey: string;
   publicKey: string;
 } {
   try {
-    console.log('Generating wallet for email:', email, 'userId:', userId);
+    console.log('[walletUtils] Generating wallet for email:', email, 'userId:', userId);
     
     // Create a deterministic seed from email and userId
     const seedString = `${email.toLowerCase()}:${userId}:greenvault-wallet`;
-    console.log('Seed string:', seedString);
-    
+    console.log('[walletUtils] Seed string:', seedString);
+
     const seed = createHash('sha256').update(seedString).digest();
-    console.log('Generated seed length:', seed.length);
+    console.log('[walletUtils] Generated seed length:', seed.length);
 
     // Generate keypair from seed
     const keypair = Ed25519Keypair.fromSecretKey(seed);
@@ -27,13 +27,13 @@ export function generateTraditionalWallet(email: string, userId: string): {
       privateKey: Buffer.from(keypair.getSecretKey()).toString('base64'),
       publicKey: keypair.getPublicKey().toBase64(),
     };
-    
-    console.log('Generated wallet address:', result.address);
+
+    console.log('[walletUtils] Generated wallet address:', result.address);
     return result;
   } catch (error) {
-    console.error('Failed to generate traditional wallet:', error);
+    console.error('[walletUtils] Failed to generate wallet:', error);
     // Fallback to random wallet if deterministic fails
-    console.log('Falling back to random wallet generation');
+    console.log('[walletUtils] Falling back to random wallet generation');
     return generateRandomWallet();
   }
 }
@@ -54,8 +54,8 @@ export function restoreWalletFromPrivateKey(privateKeyBase64: string): {
       publicKey: keypair.getPublicKey().toBase64(),
     };
   } catch (error) {
-    console.error('Failed to restore wallet:', error);
-    throw new Error('Failed to restore wallet');
+    console.error('[walletUtils] Failed to restore wallet:', error);
+    throw new Error('[walletUtils] Failed to restore wallet');
   }
 }
 
@@ -76,7 +76,7 @@ export function generateRandomWallet(): {
       publicKey: keypair.getPublicKey().toBase64(),
     };
   } catch (error) {
-    console.error('Failed to generate random wallet:', error);
-    throw new Error('Failed to generate wallet address');
+    console.error('[walletUtils] Failed to generate random wallet:', error);
+    throw new Error('[walletUtils] Failed to generate wallet address');
   }
 }

@@ -1,4 +1,3 @@
-// Google Login Types
 export interface ZkLoginState {
   ephemeralKeyPair: {
     privateKey: string;
@@ -58,7 +57,6 @@ export interface ZkLoginResponse {
   error?: string;
 }
 
-// Email Login Types
 export interface User {
   id: string;
   email: string;
@@ -67,6 +65,9 @@ export interface User {
   createdAt: string;
   walletAddress?: string;
   walletPrivateKey?: string; // Encrypted in production
+  did?: string; // DID identifier
+  didDocument?: any; // DID document
+  didCreatedAt?: string; // When DID was created
 }
 
 export interface LoginCredentials {
@@ -83,10 +84,15 @@ export interface SignupCredentials {
 export interface AuthResponse {
   success: boolean;
   data?: {
-    user: Omit<User, 'passwordHash' | 'walletPrivateKey'> & { 
+    user: Omit<User, 'passwordHash' | 'walletPrivateKey' | 'didDocument'> & { 
       walletAddress?: string;
+      did?: string;
     };
     token: string;
+    didInfo?: {
+      did: string;
+      isNew: boolean;
+    };
   };
   error?: string;
 }
@@ -97,4 +103,14 @@ export interface AuthToken {
   name?: string;
   iat: number;
   exp: number;
+}
+
+// DID-related types
+export interface DIDResult {
+  success: boolean;
+  did?: string;
+  document?: any; // DIDDocument type from did-manager
+  suiObjectId?: string;
+  message?: string;
+  error?: string;
 }

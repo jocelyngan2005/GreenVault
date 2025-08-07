@@ -3,11 +3,11 @@ import { suiZkLoginClient } from '@/lib/sui-zklogin';
 
 export async function POST() {
   try {
-    console.log('Starting pre-login data generation...');
+    console.log('[pre-login] Starting pre-login data generation...');
     
     const preLoginData = await suiZkLoginClient.generatePreLoginData();
     
-    console.log('Pre-login data generated successfully:', {
+    console.log('[pre-login] Pre-login data generated successfully:', {
       hasEphemeralKeyPair: !!preLoginData.ephemeralKeyPair,
       maxEpoch: preLoginData.maxEpoch,
       hasNonce: !!preLoginData.nonce,
@@ -19,8 +19,8 @@ export async function POST() {
       data: preLoginData,
     });
   } catch (error) {
-    console.error('Pre-login data generation error:', error);
-    console.error('Error details:', {
+    console.error('[pre-login] Pre-login data generation error:', error);
+    console.error('[pre-login] Error details:', {
       name: error instanceof Error ? error.name : 'Unknown',
       message: error instanceof Error ? error.message : 'Unknown error',
       stack: error instanceof Error ? error.stack : undefined

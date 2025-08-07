@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
-import { findUserById } from '@/lib/serverUserStore';
+import { findUserById } from '@/lib/unifiedUserStore';
 
 export async function GET(request: NextRequest) {
   try {

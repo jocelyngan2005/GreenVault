@@ -13,13 +13,20 @@ const suiClient = new SuiClient({
 export class SuiZkLoginClient {
   private client: SuiClient;
   private network: string;
-  private proverUrl: string;
+  private proverUrls: string[];
   private faucetUrl: string;
 
   constructor() {
     this.client = suiClient;
     this.network = process.env.NEXT_PUBLIC_SUI_NETWORK || 'devnet';
-    this.proverUrl = process.env.NEXT_PUBLIC_SUI_PROVER_URL || 'https://prover-dev.mystenlabs.com/v1';
+    
+    // Primary and fallback prover URLs
+    const primaryProver = process.env.NEXT_PUBLIC_SUI_PROVER_URL || 'https://prover-dev.mystenlabs.com/v1';
+    this.proverUrls = [
+      primaryProver,
+      'https://prover-dev.mystenlabs.com/v1',
+    ].filter((url, index, arr) => arr.indexOf(url) === index);
+    
     this.faucetUrl = process.env.NEXT_PUBLIC_SUI_FAUCET_URL || 'https://faucet.devnet.sui.io/gas';
   }
 
@@ -28,34 +35,34 @@ export class SuiZkLoginClient {
    */
   async generatePreLoginData(): Promise<ZkLoginState> {
     try {
-      console.log('Generating ephemeral key pair...');
+      console.log('[sui-zklogin] Generating ephemeral key pair...');
       
       // Generate ephemeral key pair
       const ephemeralKeyPair = new Ed25519Keypair();
       const privateKeyBytes = ephemeralKeyPair.getSecretKey();
       const privateKey = Buffer.from(privateKeyBytes).toString('base64');
 
-      console.log('Getting current epoch from Sui network...');
-      
+      console.log('[sui-zklogin] Getting current epoch from Sui network...');
+
       // Get current epoch and set max epoch
       const { epoch } = await this.client.getLatestSuiSystemState();
-      const maxEpoch = parseInt(epoch) + 10; // Valid for 10 epochs
+      const maxEpoch = parseInt(epoch) + 2; // Valid for 2 epochs
 
-      console.log(`Current epoch: ${epoch}, max epoch: ${maxEpoch}`);
+      console.log(`[sui-zklogin] Current epoch: ${epoch}, max epoch: ${maxEpoch}`);
 
       // Generate randomness
-      console.log('Generating randomness...');
+      console.log('[sui-zklogin] Generating randomness...');
       const randomness = generateRandomness();
 
       // Generate nonce
-      console.log('Generating nonce...');
+      console.log('[sui-zklogin] Generating nonce...');
       const nonce = generateNonce(
         ephemeralKeyPair.getPublicKey(),
         maxEpoch,
         randomness
       );
 
-      console.log('Pre-login data generation completed successfully');
+      console.log('[sui-zklogin] Pre-login data generation completed successfully');
 
       return {
         ephemeralKeyPair: {
@@ -67,17 +74,17 @@ export class SuiZkLoginClient {
         nonce,
       };
     } catch (error) {
-      console.error('Error generating pre-login data:', error);
-      
+      console.error('[sui-zklogin] Error generating pre-login data:', error);
+
       if (error instanceof Error) {
-        console.error('Error details:', {
+        console.error('[sui-zklogin] Error details:', {
           name: error.name,
           message: error.message,
           stack: error.stack
         });
       }
-      
-      throw new Error('Failed to generate pre-login data: ' + (error instanceof Error ? error.message : 'Unknown error'));
+
+      throw new Error('[sui-zklogin] Failed to generate pre-login data: ' + (error instanceof Error ? error.message : 'Unknown error'));
     }
   }
 
@@ -86,13 +93,13 @@ export class SuiZkLoginClient {
    */
   decodeJWT(jwt: string): DecodedJWT {
     try {
-      console.log('Starting JWT decoding...');
-      console.log('JWT token length:', jwt.length);
-      console.log('JWT token (first 50 chars):', jwt.substring(0, 50) + '...');
-      
+      console.log('[sui-zklogin] Starting JWT decoding...');
+      console.log('[sui-zklogin] JWT token length:', jwt.length);
+      console.log('[sui-zklogin] JWT token (first 50 chars):', jwt.substring(0, 50) + '...');
+
       const decoded = decodeJwt(jwt) as DecodedJWT;
-      
-      console.log('JWT decoded successfully:', {
+
+      console.log('[sui-zklogin] JWT decoded successfully:', {
         iss: decoded.iss,
         sub: decoded.sub,
         email: decoded.email,
@@ -117,8 +124,8 @@ export class SuiZkLoginClient {
         nonce: decoded.nonce,
       };
     } catch (error) {
-      console.error('Error decoding JWT:', error);
-      throw new Error('Invalid JWT token');
+      console.error('[sui-zklogin] Error decoding JWT:', error);
+      throw new Error('[sui-zklogin] Invalid JWT token');
     }
   }
 
@@ -127,21 +134,21 @@ export class SuiZkLoginClient {
    */
   generateUserAddress(jwt: string, salt: string): string {
     try {
-      console.log('Starting user address generation...');
-      
+      console.log('[sui-zklogin] Starting user address generation...');
+
       // Convert hex string salt to BigInt for Sui zkLogin
       const saltBigInt = BigInt('0x' + salt);
-      console.log('Salt as BigInt:', saltBigInt.toString());
-      
-      console.log('Calling jwtToAddress...');
+      console.log('[sui-zklogin] Salt as BigInt:', saltBigInt.toString());
+
+      console.log('[sui-zklogin] Calling jwtToAddress...');
       const userAddress = jwtToAddress(jwt, saltBigInt);
-      
-      console.log('User address generated successfully:', userAddress);
-      
+
+      console.log('[sui-zklogin] User address generated successfully:', userAddress);
+
       return userAddress;
     } catch (error) {
-      console.error('Error generating user address:', error);
-      throw new Error('Failed to generate user address');
+      console.error('[sui-zklogin] Error generating user address:', error);
+      throw new Error('[sui-zklogin] Failed to generate user address');
     }
   }
 
@@ -150,127 +157,131 @@ export class SuiZkLoginClient {
    */
   getExtendedEphemeralPublicKey(publicKeyBase64: string): string {
     try {
-      console.log('Starting extended ephemeral public key generation...');
-      console.log('Public key (base64):', publicKeyBase64);
-      
+      console.log('[sui-zklogin] Starting extended ephemeral public key generation...');
+      console.log('[sui-zklogin] Public key (base64):', publicKeyBase64);
+
       // Create Ed25519PublicKey from base64 string
       const publicKeyBytes = Uint8Array.from(atob(publicKeyBase64), c => c.charCodeAt(0));
       const publicKey = new Ed25519PublicKey(publicKeyBytes);
       const extendedKey = getExtendedEphemeralPublicKey(publicKey);
-      console.log('Extended ephemeral public key generated:', extendedKey);
+      console.log('[sui-zklogin] Extended ephemeral public key generated:', extendedKey);
       
       return extendedKey;
     } catch (error) {
-      console.error('Error getting extended ephemeral public key:', error);
-      // Try alternative approach - use the private key if public key reconstruction fails
+      console.error('[sui-zklogin] Error getting extended ephemeral public key:', error);
+      // Alternative approach if public key reconstruction fails
       try {
-        console.log('Trying alternative approach with private key...');
+        console.log('[sui-zklogin] Trying alternative approach with private key...');
         // If publicKeyBase64 is actually the private key, use it directly
         const privateKeyBytes = Uint8Array.from(atob(publicKeyBase64), c => c.charCodeAt(0));
         const keypair = Ed25519Keypair.fromSecretKey(privateKeyBytes);
-        console.log('Keypair created from secret key');
+        console.log('[sui-zklogin] Keypair created from secret key');
         
         const extendedKey = getExtendedEphemeralPublicKey(keypair.getPublicKey());
-        console.log('Extended ephemeral public key generated (alternative method):', extendedKey);
-        
+        console.log('[sui-zklogin] Extended ephemeral public key generated (alternative method):', extendedKey);
+
         return extendedKey;
       } catch (altError) {
-        console.error('Alternative approach also failed:', altError);
-        throw new Error('Failed to get extended ephemeral public key');
+        console.error('[sui-zklogin] Alternative approach also failed:', altError);
+        throw new Error('[sui-zklogin] Failed to get extended ephemeral public key');
       }
     }
   }
 
   /**
-   * Request ZK proof from Sui prover service
+   * Request ZK proof from Sui prover service with retry logic and fallback URLs
    */
   async requestZkProof(payload: {
     jwt: string;
     extendedEphemeralPublicKey: string;
     maxEpoch: number;
     jwtRandomness: string;
-    salt: string; // hex string from frontend
+    salt: string;
     keyClaimName: string;
   }): Promise<ZkLoginProof> {
-    try {
-      // Convert salt from hex string to base64
-      const saltHex = payload.salt;
-      const saltBytes = Uint8Array.from(Buffer.from(saltHex, 'hex'));
-      const saltBase64 = Buffer.from(saltBytes).toString('base64');
-
-      // Build new payload with base64-encoded salt
-      const proverPayload = {
-        ...payload,
-        salt: saltBase64,
-      };
-
-      // Log the prover request payload and URL for debugging
-      console.log('[zkLogin] Prover request URL:', this.proverUrl);
-      console.log('[zkLogin] Prover request payload:', JSON.stringify(proverPayload, null, 2));
-
-      // Retry logic for prover service
-      const maxRetries = 3;
-      let lastError: Error | null = null;
+    const maxRetries = 2;
+    const baseDelay = 2000;
+    
+    // Try each prover URL
+    for (let urlIndex = 0; urlIndex < this.proverUrls.length; urlIndex++) {
+      const proverUrl = this.proverUrls[urlIndex];
+      console.log(`[sui-zklogin] Trying prover URL ${urlIndex + 1}/${this.proverUrls.length}: ${proverUrl}`);
 
       for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
-          console.log(`[zkLogin] Prover request attempt ${attempt}/${maxRetries}`);
-          
-          const response = await fetch(this.proverUrl, {
+          console.log(`[sui-zklogin] Requesting ZK proof (URL ${urlIndex + 1}, attempt ${attempt}/${maxRetries})...`);
+
+          // Convert salt from hex string to base64
+          const saltHex = payload.salt;
+          const saltBytes = Uint8Array.from(Buffer.from(saltHex, 'hex'));
+          const saltBase64 = Buffer.from(saltBytes).toString('base64');
+
+          // Build new payload with base64-encoded salt
+          const proverPayload = {
+            ...payload,
+            salt: saltBase64,
+          };
+
+          // Log the prover request payload and URL for debugging
+          console.log('[sui-zklogin] Prover request URL:', proverUrl);
+          console.log('[sui-zklogin] Prover request payload keys:', Object.keys(proverPayload));
+
+          // Create AbortController for timeout
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 25000); // 25 second timeout
+
+          const response = await fetch(proverUrl, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
+              'Accept': 'application/json',
             },
             body: JSON.stringify(proverPayload),
+            signal: controller.signal,
           });
+
+          clearTimeout(timeoutId);
 
           if (!response.ok) {
             // Log the response body for more details
             const errorText = await response.text();
-            console.error(`[zkLogin] Prover error response (attempt ${attempt}):`, errorText);
-            
-            // If it's a server error (5xx), retry; if client error (4xx), don't retry
-            if (response.status >= 500 && attempt < maxRetries) {
-              console.log(`[zkLogin] Server error, retrying in ${attempt * 2} seconds...`);
-              await new Promise(resolve => setTimeout(resolve, attempt * 2000));
-              continue;
+            console.error(`[sui-zklogin] Prover error response (URL ${urlIndex + 1}, attempt ${attempt}):`, errorText);
+
+            if (attempt === maxRetries) {
+              console.log(`[sui-zklogin] All attempts failed for URL ${urlIndex + 1}, trying next URL...`);
+              break; // Try next URL
             }
             
-            throw new Error(`Prover service error: ${response.statusText}`);
+            // Wait before retrying same URL
+            const delay = baseDelay * Math.pow(2, attempt - 1); // Exponential backoff
+            console.log(`[sui-zklogin] Waiting ${delay}ms before retry...`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+            continue;
           }
 
           const zkProof = await response.json();
-          console.log('[zkLogin] ZK proof received successfully');
+          console.log(`[sui-zklogin] ZK proof received successfully from URL ${urlIndex + 1} on attempt ${attempt}`);
           return zkProof;
           
         } catch (error) {
-          lastError = error as Error;
-          
-          // If it's a timeout or connection error and we have retries left, retry
-          if ((error as any).name === 'TimeoutError' || 
-              (error as any).name === 'ConnectTimeoutError' || 
-              (error as any).cause?.code === 'UND_ERR_CONNECT_TIMEOUT') {
-            
-            if (attempt < maxRetries) {
-              console.log(`[zkLogin] Connection timeout, retrying in ${attempt * 2} seconds...`);
-              await new Promise(resolve => setTimeout(resolve, attempt * 2000));
-              continue;
-            }
+          console.error(`[sui-zklogin] Error on URL ${urlIndex + 1}, attempt ${attempt}:`, error);
+
+          if (attempt === maxRetries) {
+            console.log(`[sui-zklogin] All attempts failed for URL ${urlIndex + 1}, trying next URL...`);
+            break; // Try next URL
           }
           
-          // If it's not a retryable error, throw immediately
-          throw error;
+          // Wait before retrying same URL
+          const delay = baseDelay * Math.pow(2, attempt - 1); // Exponential backoff
+          console.log(`[sui-zklogin] Waiting ${delay}ms before retry...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
         }
       }
-
-      // If we get here, all retries failed
-      throw lastError || new Error('All retry attempts failed');
-      
-    } catch (error) {
-      console.error('Error requesting ZK proof:', error);
-      throw new Error('Failed to get ZK proof from prover service. The service may be temporarily unavailable. Please try again in a few minutes.');
     }
-  }
+    
+    // If we get here, all URLs and retries failed
+    throw new Error('All zkLogin prover services are currently unavailable. Please try again later.');
+  } 
 }
 
 export const suiZkLoginClient = new SuiZkLoginClient();

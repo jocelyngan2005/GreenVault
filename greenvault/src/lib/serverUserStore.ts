@@ -1,7 +1,7 @@
 import { writeFileSync, readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import type { User } from '@/types/zklogin';
-import { generateTraditionalWallet as generateWallet } from '@/lib/walletUtils';
+import { generateWallet as generateWallet } from '@/lib/walletUtils';
 
 // Server-side storage file path
 const STORAGE_FILE = join(process.cwd(), 'data', 'users.json');
@@ -32,7 +32,7 @@ function loadUsers(): UserStore {
       return JSON.parse(data);
     }
   } catch (error) {
-    console.error('Failed to load users from file:', error);
+    console.error('[serverUserStore] Failed to load users from file:', error);
   }
   return {};
 }
@@ -45,7 +45,7 @@ function saveUsers(users: UserStore) {
     ensureDataDirectory();
     writeFileSync(STORAGE_FILE, JSON.stringify(users, null, 2));
   } catch (error) {
-    console.error('Failed to save users to file:', error);
+    console.error('[serverUserStore] Failed to save users to file:', error);
   }
 }
 
@@ -69,7 +69,7 @@ export function createUser(email: string, passwordHash: string, name?: string): 
     walletPrivateKey: wallet.privateKey, // In production, this should be encrypted
   };
 
-  console.log('Creating user:', {
+  console.log('[serverUserStore] Creating user:', {
     email: user.email,
     id: user.id,
     hasWallet: !!user.walletAddress
@@ -77,10 +77,10 @@ export function createUser(email: string, passwordHash: string, name?: string): 
 
   users[email.toLowerCase()] = user;
   saveUsers(users);
-  
-  console.log('User stored in server-side storage');
-  console.log('Current users:', Object.keys(users));
-  
+
+  console.log('[serverUserStore] User stored in server-side storage');
+  console.log('[serverUserStore] Current users:', Object.keys(users));
+
   return user;
 }
 
@@ -88,12 +88,12 @@ export function createUser(email: string, passwordHash: string, name?: string): 
  * Find a user by email
  */
 export function findUserByEmail(email: string): User | null {
-  console.log('Finding user by email:', email);
+  console.log('[serverUserStore] Finding user by email:', email);
   const users = loadUsers();
-  console.log('Available users:', Object.keys(users));
+  console.log('[serverUserStore] Available users:', Object.keys(users));
   
   const user = users[email.toLowerCase()] || null;
-  console.log('Found user:', !!user);
+  console.log('[serverUserStore] Found user:', !!user);
   
   return user;
 }
@@ -134,4 +134,29 @@ export function getAllUsers(): User[] {
  */
 export function clearAllUsers(): void {
   saveUsers({});
+}
+
+/**
+ * Update user with DID information
+ */
+export function updateUserWithDID(email: string, did: string, didDocument: any): User | null {
+  console.log('[serverUserStore] Updating user with DID:', { email, did });
+  const users = loadUsers();
+  const user = users[email.toLowerCase()];
+  
+  if (!user) {
+    console.error('[serverUserStore] User not found for DID update:', email);
+    return null;
+  }
+  
+  // Update user with DID information
+  user.did = did;
+  user.didDocument = didDocument;
+  user.didCreatedAt = new Date().toISOString();
+  
+  users[email.toLowerCase()] = user;
+  saveUsers(users);
+
+  console.log('[serverUserStore] User updated with DID successfully');
+  return user;
 }
