@@ -24,10 +24,10 @@ module greenvault::fractional_credits {
     const E_CREDIT_NOT_FRACTIONAL: u64 = 4;
 
     // One-time witness for coin creation (must match module name in uppercase)
-    struct FRACTIONAL_CREDITS has drop {}
+    public struct FRACTIONAL_CREDITS has drop {}
 
     // Fractional Credit Pool
-    struct FractionalPool has key {
+    public struct FractionalPool has key {
         id: UID,
         original_credit_id: ID,
         total_fractions: u64,
@@ -39,7 +39,7 @@ module greenvault::fractional_credits {
         created_at: u64,
     }
 
-    struct CreditMetadata has store {
+    public struct CreditMetadata has store {
         project_id: String,
         project_type: u8,
         vintage_year: u16,
@@ -49,7 +49,7 @@ module greenvault::fractional_credits {
     }
 
     // Micro-transaction system for small eco-friendly actions
-    struct MicroCreditSystem has key {
+    public struct MicroCreditSystem has key {
         id: UID,
         admin: address,
         action_rewards: Table<String, u64>, // Action type -> fraction reward
@@ -58,7 +58,7 @@ module greenvault::fractional_credits {
         community_pool: Balance<FRACTIONAL_CREDITS>,
     }
 
-    struct DailyLimit has store {
+    public struct DailyLimit has store {
         date: u64, // Day timestamp
         credits_earned: u64,
         actions_performed: u64,
@@ -66,28 +66,28 @@ module greenvault::fractional_credits {
     }
 
     // Events
-    struct CreditFractionalized has copy, drop {
+    public struct CreditFractionalized has copy, drop {
         original_credit_id: ID,
         pool_id: ID,
         total_fractions: u64,
         price_per_fraction: u64,
     }
 
-    struct FractionsPurchased has copy, drop {
+    public struct FractionsPurchased has copy, drop {
         buyer: address,
         pool_id: ID,
         fractions_bought: u64,
         total_cost: u64,
     }
 
-    struct MicroCreditEarned has copy, drop {
+    public struct MicroCreditEarned has copy, drop {
         user: address,
         action_type: String,
         fractions_earned: u64,
         evidence_hash: vector<u8>,
     }
 
-    struct FractionalCreditRetired has copy, drop {
+    public struct FractionalCreditRetired has copy, drop {
         retired_by: address,
         fractions_retired: u64,
         retirement_reason: String,

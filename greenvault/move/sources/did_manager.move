@@ -28,7 +28,7 @@ module greenvault::did_manager {
     const VERIFICATION_INSTITUTIONAL: u8 = 3;
 
     // Enhanced DID Registry with privacy features
-    struct DIDManager has key {
+    public struct DIDManager has key {
         id: UID,
         admin: address,
         identities: Table<address, Identity>,
@@ -38,7 +38,7 @@ module greenvault::did_manager {
         privacy_settings: Table<address, PrivacySettings>,
     }
 
-    struct Identity has store {
+    public struct Identity has store {
         did: String,
         verification_level: u8,
         attributes: VecMap<String, String>, // Encrypted attributes
@@ -51,7 +51,7 @@ module greenvault::did_manager {
         verified_by: Option<address>,
     }
 
-    struct CommunityVerifier has store {
+    public struct CommunityVerifier has store {
         verifier_address: address,
         community_name: String,
         verification_count: u64,
@@ -61,7 +61,7 @@ module greenvault::did_manager {
         did_anchor: Option<String>,
     }
 
-    struct VerificationRequest has key, store {
+    public struct VerificationRequest has key, store {
         id: UID,
         requester: address,
         verification_type: u8,
@@ -73,14 +73,14 @@ module greenvault::did_manager {
         processed_at: Option<u64>,
     }
 
-    struct ReputationSystem has store {
+    public struct ReputationSystem has store {
         total_verified_users: u64,
         community_verifications: u64,
         sustainability_actions: u64,
         fraud_reports: Table<address, u64>,
     }
 
-    struct PrivacySettings has store {
+    public struct PrivacySettings has store {
         public_profile: bool,
         share_reputation: bool,
         allow_community_verification: bool,
@@ -89,21 +89,21 @@ module greenvault::did_manager {
     }
 
     // Events
-    struct IdentityCreated has copy, drop {
+    public struct IdentityCreated has copy, drop {
         user: address,
         did: String,
         verification_level: u8,
         community_context: Option<String>,
     }
 
-    struct VerificationCompleted has copy, drop {
+    public struct VerificationCompleted has copy, drop {
         user: address,
         new_level: u8,
         verifier: address,
         community: Option<String>,
     }
 
-    struct SustainabilityAction has copy, drop {
+    public struct SustainabilityAction has copy, drop {
         user: address,
         action_type: String,
         credits_earned: u64,
@@ -146,8 +146,8 @@ module greenvault::did_manager {
         assert!(!table::contains(&did_manager.identities, user), E_IDENTITY_EXISTS);
 
         // Create attribute map from encrypted data
-        let attributes = vec_map::empty<String, String>();
-        let i = 0;
+        let mut attributes = vec_map::empty<String, String>();
+        let mut i = 0;
         while (i < vector::length(&attribute_keys)) {
             vec_map::insert(
                 &mut attributes,

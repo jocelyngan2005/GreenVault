@@ -19,7 +19,75 @@ Before testing, make sure you have:
 1. Successfully deployed the GreenVault contract
 2. Collected all the required object IDs from deployment
 3. Sui CLI installed and configured
-#4. Active Sui wallet with sufficient SUI for gas fees
+4. Active Sui wallet with sufficient SUI for gas fees
+
+## 🚀 Deploying the GreenVault Smart Contract
+
+Follow these steps to deploy your GreenVault contract on Sui:
+
+### 1. (Optional) Create a New Address
+
+If you want to use a fresh address for deployment:
+
+```sh
+sui client new-address ed25519
+```
+
+- Follow the prompts to create and name your new address.
+
+### 2. (Optional) Fund Your Address with SUI
+
+If you are on a testnet, request SUI from the faucet:
+
+```sh
+sui client faucet
+```
+
+- Make sure your address has enough SUI for deployment gas fees.
+
+### 3. Build the Move Package
+
+Navigate to your contract directory and build the package:
+
+```sh
+cd /path/to/greenvault/move
+sui move build
+```
+
+### 4. Publish the Package
+
+Deploy the contract to the Sui network:
+
+```sh
+sui client publish --gas-budget 100000000
+```
+
+- This command will output your `PACKAGE_ID` and initial shared object IDs.
+
+### 5. Record Deployment Output
+
+Copy and save the following IDs from the publish output:
+- `PACKAGE_ID`
+- `REGISTRY_ID`
+- `DID_REGISTRY_ID`
+- `ORACLE_REGISTRY_ID`
+- `MARKETPLACE_ID`
+- `DID_MANAGER_ID`
+- `MICRO_CREDIT_SYSTEM_ID`
+- `TREASURY_CAP_ID`
+
+You will need these for all subsequent testing steps.
+
+### 6. Verify Deployment
+
+Check that your package and objects exist:
+
+```sh
+sui client object PACKAGE_ID
+sui client object REGISTRY_ID
+```
+
+If you see object details, your deployment was successful.
 
 ## Step 1: Get Your Address
 

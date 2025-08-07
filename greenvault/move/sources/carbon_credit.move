@@ -38,7 +38,7 @@ module greenvault::carbon_credit {
     const PROJECT_AGRICULTURE: u8 = 4;
 
     // Carbon Credit NFT Structure
-    struct CarbonCredit has key, store {
+    public struct CarbonCredit has key, store {
         id: UID,
         project_id: String,
         serial_number: String,
@@ -57,7 +57,7 @@ module greenvault::carbon_credit {
     }
 
     // Project Registry for tracking sustainability projects
-    struct ProjectRegistry has key {
+    public struct ProjectRegistry has key {
         id: UID,
         admin: address,
         projects: Table<String, Project>,
@@ -66,7 +66,7 @@ module greenvault::carbon_credit {
         total_credits_retired: u64,
     }
 
-    struct Project has store {
+    public struct Project has store {
         id: String,
         name: String,
         description: String,
@@ -83,7 +83,7 @@ module greenvault::carbon_credit {
     }
 
     // Marketplace for trading
-    struct Marketplace has key {
+    public struct Marketplace has key {
         id: UID,
         admin: address,
         fee_rate: u64, // Basis points (e.g., 250 = 2.5%)
@@ -93,7 +93,7 @@ module greenvault::carbon_credit {
         community_fund: u64, // Portion of fees for underserved communities
     }
 
-    struct Listing has store, drop {
+    public struct Listing has store, drop {
         credit_id: ID,
         seller: address,
         price: u64,
@@ -104,13 +104,13 @@ module greenvault::carbon_credit {
     }
 
     // DID Identity anchor (optional integration)
-    struct DIDRegistry has key {
+    public struct DIDRegistry has key {
         id: UID,
         identities: Table<address, DIDInfo>,
         verified_count: u64,
     }
 
-    struct DIDInfo has store {
+    public struct DIDInfo has store {
         did: String,
         verification_level: u8, // 0: Basic, 1: KYC, 2: Community verified
         attributes_hash: vector<u8>,
@@ -119,7 +119,7 @@ module greenvault::carbon_credit {
     }
 
     // Events
-    struct CreditMinted has copy, drop {
+    public struct CreditMinted has copy, drop {
         credit_id: ID,
         project_id: String,
         quantity: u64,
@@ -127,7 +127,7 @@ module greenvault::carbon_credit {
         beneficiary_community: Option<String>,
     }
 
-    struct CreditTraded has copy, drop {
+    public struct CreditTraded has copy, drop {
         credit_id: ID,
         seller: address,
         buyer: address,
@@ -135,14 +135,14 @@ module greenvault::carbon_credit {
         quantity: u64,
     }
 
-    struct CreditRetired has copy, drop {
+    public struct CreditRetired has copy, drop {
         credit_id: ID,
         retired_by: address,
         quantity: u64,
         retirement_reason: String,
     }
 
-    struct ProjectRegistered has copy, drop {
+    public struct ProjectRegistered has copy, drop {
         project_id: String,
         developer: address,
         project_type: u8,
@@ -315,7 +315,7 @@ module greenvault::carbon_credit {
     public entry fun buy_credit(
         marketplace: &mut Marketplace,
         credit_id: ID,
-        payment: Coin<SUI>,
+        mut payment: Coin<SUI>,
         ctx: &mut TxContext
     ) {
         let buyer = tx_context::sender(ctx);
@@ -333,7 +333,7 @@ module greenvault::carbon_credit {
 
         // Split payment properly
         if (fee > 0) {
-            let fee_coin = coin::split(&mut payment, fee, ctx);
+            let mut fee_coin = coin::split(&mut payment, fee, ctx);
             if (community_fee > 0) {
                 let treasury_coin = coin::split(&mut fee_coin, fee - community_fee, ctx);
                 transfer::public_transfer(treasury_coin, marketplace.treasury);
