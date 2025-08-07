@@ -3,7 +3,10 @@ import jwt, { SignOptions } from 'jsonwebtoken';
 import type { User, AuthToken } from '@/types/zklogin';
 
 // In production, this should be a secure random string from environment variables
-const JWT_SECRET = process.env.JWT_SECRET || '7a4642571ac9c1f0f081f11cb6c5bdaa5039fc8f1526d194a6cbe58c1dff3f8a7561e8ed880ac90e3082774ac6fa749aa8a94fcfe717c91d7d91d1037bdfbe28';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  throw new Error('JWT_SECRET environment variable is required');
+}
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
 
 /**
@@ -34,7 +37,7 @@ export function generateToken(user: Omit<User, 'passwordHash'>): string {
     name: user.name,
   };
 
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' });
+  return jwt.sign(payload, JWT_SECRET as string, { expiresIn: '7d' });
 }
 
 /**
@@ -42,7 +45,7 @@ export function generateToken(user: Omit<User, 'passwordHash'>): string {
  */
 export function verifyToken(token: string): AuthToken | null {
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as AuthToken;
+    const decoded = jwt.verify(token, JWT_SECRET as string) as unknown as AuthToken;
     return decoded;
   } catch (error) {
     console.error('Token verification failed:', error);

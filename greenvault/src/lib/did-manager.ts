@@ -24,7 +24,11 @@ export class DIDManager {
     this.suiClient = new SuiClient({
       url: getFullnodeUrl(process.env.NEXT_PUBLIC_SUI_NETWORK as 'devnet' | 'testnet' | 'mainnet' || 'devnet'),
     });
-    this.encryptionSecret = process.env.ENCRYPTION_SECRET || 'default-secret-change-in-production';
+    
+    if (!process.env.ENCRYPTION_SECRET) {
+      throw new Error('ENCRYPTION_SECRET environment variable is required for DID private key encryption');
+    }
+    this.encryptionSecret = process.env.ENCRYPTION_SECRET;
     console.log(`[did-manager] DIDManager initialized with Sui blockchain (method: did:${this.DID_METHOD})`);
     console.log(`[did-manager] DID Method Specification: ${JSON.stringify(suiDIDMethod.getMethodSpecification())}`);
   }
