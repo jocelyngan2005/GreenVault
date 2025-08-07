@@ -7,7 +7,7 @@ import Link from 'next/link';
 
 // Google OAuth configuration
 const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
-const REDIRECT_URI = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}`;
+const REDIRECT_URI = `${process.env.NEXT_PUBLIC_APP_URL_LOGIN || 'http://localhost:3000'}`;
 
 export default function LoginPage() {
   const [isEmailLoading, setIsEmailLoading] = useState(false);
