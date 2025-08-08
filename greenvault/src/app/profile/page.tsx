@@ -3,15 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Navigation from '@/components/Navigation';
-
-interface Secret {
-  id: string;
-  title: string;
-  username: string;
-  category: string;
-  lastModified: string;
-  isDecrypted: boolean;
-}
+import VaultSecretsManager from '@/components/VaultSecretsManager';
 
 interface UserProfile {
   name: string;
@@ -33,97 +25,158 @@ export default function ProfilePage() {
     didAddress: 'did:sui:0x742d35Cc6472C14B5B1793c7E5a85B5d4C7B2F2e'
   });
 
-  const [secrets, setSecrets] = useState<Secret[]>([
-    {
-      id: '1',
-      title: 'GitHub',
-      username: 'user@example.com',
-      category: 'Development',
-      lastModified: '2025-01-15',
-      isDecrypted: false
-    },
-    {
-      id: '2',
-      title: 'Email Account',
-      username: 'personal@email.com',
-      category: 'Personal',
-      lastModified: '2025-01-10',
-      isDecrypted: false
-    },
-    {
-      id: '3',
-      title: 'Banking Portal',
-      username: 'john.doe',
-      category: 'Financial',
-      lastModified: '2025-01-08',
-      isDecrypted: false
-    }
-  ]);
-
-  const [selectedCategory, setSelectedCategory] = useState('All');
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [decryptPassword, setDecryptPassword] = useState('');
-  const [decryptingId, setDecryptingId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'profile' | 'vault'>('profile');
   const [showRecoveryPhrase, setShowRecoveryPhrase] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
+  const [userId, setUserId] = useState<string>('');
+  const [userKey, setUserKey] = useState<string>('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   const mockRecoveryPhrase = 'secure vault recovery phrase would appear here after authentication';
   const mockDID = 'did:example:123456789abcdefghi';
 
-  const categories = ['All', 'Personal', 'Development', 'Financial', 'Social'];
-
   useEffect(() => {
     setIsMounted(true);
-    // Get user role from localStorage
-    const role = localStorage.getItem('user-role') as 'project-owner' | 'credit-buyer' | null;
-    setUserProfile(prev => ({ ...prev, role }));
-
-    // In a real app, you'd fetch user data from an API
-    // For now, we'll simulate with localStorage data
-    const zkLoginData = localStorage.getItem('zklogin-data');
-    if (zkLoginData) {
-      try {
-        const data = JSON.parse(zkLoginData);
-        setUserProfile(prev => ({
-          ...prev,
-          walletAddress: data.userAddress || prev.walletAddress
-        }));
-      } catch (error) {
-        console.error('Error parsing zkLogin data:', error);
-      }
-    }
+    loadUserData();
   }, []);
 
-  const filteredSecrets = selectedCategory === 'All' 
-    ? secrets 
-    : secrets.filter(s => s.category === selectedCategory);
+  const loadUserData = async () => {
+    try {
+      setIsLoading(true);
+      
+      // Get user data from localStorage
+      const userDataStr = localStorage.getItem('user-data');
+      const zkLoginDataStr = localStorage.getItem('zklogin-data');
+      const userTokenStr = localStorage.getItem('user-token');
+      
+      let loadedProfile: Partial<UserProfile> = {};
+      let loadedUserId = '';
+      let loadedUserKey = '';
+      
+      if (userDataStr) {
+        // Regular login user
+        try {
+          const userData = JSON.parse(userDataStr);
+          loadedUserId = userData.id;
+          loadedUserKey = `vault-${userData.id}-consistent`;
+          loadedProfile = {
+            name: userData.name || '',
+            email: userData.email || '',
+            walletAddress: userData.walletAddress || '',
+            didAddress: userData.did || '',
+            joinDate: userData.createdAt || new Date().toISOString().split('T')[0]
+          };
+        } catch (error) {
+          console.error('Error parsing user data:', error);
+        }
+      } else if (zkLoginDataStr) {
+        // zkLogin user
+        try {
+          const zkLoginData = JSON.parse(zkLoginDataStr);
+          loadedUserId = zkLoginData.userAddress || zkLoginData.sub;
+          loadedUserKey = `vault-${loadedUserId}-consistent`;
+          loadedProfile = {
+            name: zkLoginData.name || zkLoginData.given_name || '',
+            email: zkLoginData.email || '',
+            walletAddress: zkLoginData.userAddress || '',
+            didAddress: zkLoginData.did || '',
+            joinDate: zkLoginData.createdAt || new Date().toISOString().split('T')[0]
+          };
+        } catch (error) {
+          console.error('Error parsing zkLogin data:', error);
+        }
+      } else if (userTokenStr) {
+        // Try to decode user token
+        try {
+          const tokenData = JSON.parse(atob(userTokenStr.split('.')[1]));
+          loadedUserId = tokenData.id;
+          loadedUserKey = `vault-${tokenData.id}-consistent`;
+          loadedProfile = {
+            name: tokenData.name || '',
+            email: tokenData.email || '',
+            joinDate: tokenData.createdAt || new Date().toISOString().split('T')[0]
+          };
+        } catch (error) {
+          console.error('Error parsing user token:', error);
+        }
+      }
 
-  const handleDecrypt = async (id: string) => {
-    if (!decryptPassword) return;
-    
-    setDecryptingId(id);
-    // Simulate decryption
-    setTimeout(() => {
-      setSecrets(prev => prev.map(s => 
-        s.id === id ? { ...s, isDecrypted: true } : s
-      ));
-      setDecryptingId(null);
-      setDecryptPassword('');
-    }, 1500);
+      // Get user role from localStorage
+      const role = localStorage.getItem('user-role') as 'project-owner' | 'credit-buyer' | null;
+      
+      // Update state
+      setUserId(loadedUserId);
+      setUserKey(loadedUserKey);
+      setUserProfile(prev => ({
+        ...prev,
+        ...loadedProfile,
+        role
+      }));
+      
+      // If we don't have user data, redirect to login
+      if (!loadedUserId) {
+        router.push('/login');
+      }
+      
+    } catch (error) {
+      console.error('Error loading user data:', error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleAddSecret = () => {
-    const newSecret: Secret = {
-      id: Date.now().toString(),
-      title: 'New Secret',
-      username: 'username',
-      category: 'Personal',
-      lastModified: new Date().toISOString().split('T')[0],
-      isDecrypted: false
-    };
-    setSecrets(prev => [...prev, newSecret]);
-    setShowAddForm(false);
+  const handleInputChange = (field: keyof UserProfile, value: string) => {
+    setUserProfile(prev => ({
+      ...prev,
+      [field]: value
+    }));
+    setHasUnsavedChanges(true);
+  };
+
+  const handleSaveProfile = async () => {
+    if (!userId) return;
+    
+    try {
+      setIsLoading(true);
+      
+      // Update localStorage with new profile data (only editable fields)
+      const userDataStr = localStorage.getItem('user-data');
+      const zkLoginDataStr = localStorage.getItem('zklogin-data');
+      
+      if (userDataStr) {
+        // Regular user data
+        const userData = JSON.parse(userDataStr);
+        const updatedData = {
+          ...userData,
+          name: userProfile.name,
+          email: userProfile.email
+          // Don't update walletAddress or did - they're read-only
+        };
+        localStorage.setItem('user-data', JSON.stringify(updatedData));
+      } else if (zkLoginDataStr) {
+        // zkLogin user data
+        const zkLoginData = JSON.parse(zkLoginDataStr);
+        const updatedData = {
+          ...zkLoginData,
+          name: userProfile.name,
+          email: userProfile.email
+          // Don't update walletAddress or did - they're read-only
+        };
+        localStorage.setItem('zklogin-data', JSON.stringify(updatedData));
+      }
+      
+      // Don't save role - it's read-only and set during onboarding
+      
+      setHasUnsavedChanges(false);
+      alert('Profile updated successfully!');
+      
+    } catch (error) {
+      console.error('Error saving profile:', error);
+      alert('Failed to save profile. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleVaultRecovery = () => {
@@ -185,6 +238,13 @@ export default function ProfilePage() {
           <p className="text-gray-600">Manage your account information and secure vault.</p>
         </div>
 
+        {isLoading ? (
+          <div className="text-center py-16">
+            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-black"></div>
+            <p className="mt-4 text-gray-600">Loading profile...</p>
+          </div>
+        ) : (
+        <>
         {/* Tab Navigation */}
         <div className="border-b border-black mb-8">
           <nav className="flex gap-8">
@@ -234,8 +294,9 @@ export default function ProfilePage() {
                       <input
                         type="text"
                         value={userProfile.name}
-                        onChange={(e) => setUserProfile(prev => ({ ...prev, name: e.target.value }))}
+                        onChange={(e) => handleInputChange('name', e.target.value)}
                         className="w-full p-2 border border-gray-300"
+                        disabled={isLoading}
                       />
                     </div>
                     <div>
@@ -243,8 +304,9 @@ export default function ProfilePage() {
                       <input
                         type="email"
                         value={userProfile.email}
-                        onChange={(e) => setUserProfile(prev => ({ ...prev, email: e.target.value }))}
+                        onChange={(e) => handleInputChange('email', e.target.value)}
                         className="w-full p-2 border border-gray-300"
+                        disabled={isLoading}
                       />
                     </div>
                     <div>
@@ -257,6 +319,12 @@ export default function ProfilePage() {
                             Set Role
                           </a>
                         )}
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm text-gray-600">Member Since</label>
+                      <div className="p-2 bg-gray-50 border border-gray-300 text-sm">
+                        {userProfile.joinDate ? new Date(userProfile.joinDate).toLocaleDateString() : 'Not available'}
                       </div>
                     </div>
                   </div>
@@ -278,15 +346,38 @@ export default function ProfilePage() {
                       </div>
                     </div>
                     <div className="flex gap-2 mt-4">
-                      <button className="text-sm bg-black text-white px-4 py-2 border border-black hover:bg-white hover:text-black transition-colors">
-                        Update Profile
+                      <button 
+                        onClick={handleSaveProfile}
+                        disabled={isLoading || !hasUnsavedChanges}
+                        className={`text-sm px-4 py-2 border transition-colors ${
+                          hasUnsavedChanges && !isLoading
+                            ? 'bg-black text-white border-black hover:bg-white hover:text-black'
+                            : 'bg-gray-300 text-gray-500 border-gray-300 cursor-not-allowed'
+                        }`}
+                      >
+                        {isLoading ? 'Saving...' : 'Save Changes'}
                       </button>
-                      <button className="text-sm bg-white text-black px-4 py-2 border border-black hover:bg-black hover:text-white transition-colors">
-                        Export Data
+                      <button 
+                        onClick={() => {
+                          if (hasUnsavedChanges) {
+                            if (confirm('You have unsaved changes. Are you sure you want to discard them?')) {
+                              loadUserData();
+                            }
+                          }
+                        }}
+                        disabled={isLoading || !hasUnsavedChanges}
+                        className={`text-sm px-4 py-2 border transition-colors ${
+                          hasUnsavedChanges && !isLoading
+                            ? 'bg-white text-black border-black hover:bg-black hover:text-white'
+                            : 'bg-gray-300 text-gray-500 border-gray-300 cursor-not-allowed'
+                        }`}
+                      >
+                        Discard Changes
                       </button>
                       <button 
                         onClick={handleLogout}
-                        className="text-sm bg-red-600 text-white px-4 py-2 border border-red-600 hover:bg-white hover:text-red-600 transition-colors"
+                        disabled={isLoading}
+                        className="text-sm bg-red-600 text-white px-4 py-2 border border-red-600 hover:bg-white hover:text-red-600 transition-colors disabled:opacity-50"
                       >
                         Logout
                       </button>
@@ -349,19 +440,6 @@ export default function ProfilePage() {
         {/* Vault Tab */}
         {activeTab === 'vault' && (
           <div className="space-y-8">
-            {/* Vault Header */}
-            <div className="flex justify-between items-center">
-              <div>
-                <h2 className="text-xl font-bold mb-2">Secure Password Vault</h2>
-                <p className="text-gray-600">Your passwords are encrypted and stored securely on Walrus & Seal network.</p>
-              </div>
-              <button
-                onClick={() => setShowAddForm(!showAddForm)}
-                className="bg-black text-white px-4 py-2 border border-black hover:bg-white hover:text-black transition-colors"
-              >
-                + Add New
-              </button>
-            </div>
 
             {/* Vault Security Section */}
             <div className="border border-black p-6">
@@ -370,7 +448,7 @@ export default function ProfilePage() {
                 <div>
                   <h4 className="font-medium mb-2">Digital Identity (DID)</h4>
                   <div className="p-3 font-mono text-sm border border-black bg-gray-50 mb-2">
-                    {mockDID}
+                    {userProfile.didAddress || 'Not available'}
                   </div>
                   <p className="text-xs text-gray-500 mb-4">
                     Your unique decentralized identifier
@@ -436,114 +514,12 @@ export default function ProfilePage() {
               </div>
             </div>
 
-            {/* Categories Filter */}
-            <div className="flex gap-2 flex-wrap">
-              {categories.map(category => (
-                <button
-                  key={category}
-                  onClick={() => setSelectedCategory(category)}
-                  className={`px-3 py-1 text-sm border ${
-                    selectedCategory === category
-                      ? 'border-black bg-black text-white'
-                      : 'border-gray-300 hover:border-black'
-                  }`}
-                >
-                  {category}
-                </button>
-              ))}
-            </div>
-
-            {/* Secrets List */}
-            <div className="border border-black">
-              <div className="bg-gray-50 px-6 py-4 border-b border-black">
-                <h3 className="text-lg font-bold">
-                  Stored Secrets ({filteredSecrets.length})
-                </h3>
-              </div>
-              <div className="divide-y divide-gray-200">
-                {filteredSecrets.map((secret) => (
-                  <div key={secret.id} className="p-6">
-                    <div className="flex justify-between items-start">
-                      <div className="flex-1">
-                        <h4 className="font-semibold mb-1">{secret.title}</h4>
-                        <p className="text-sm text-gray-600 mb-1">Username: {secret.username}</p>
-                        <div className="flex gap-4 text-xs text-gray-500">
-                          <span>Category: {secret.category}</span>
-                          <span>Modified: {secret.lastModified}</span>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {secret.isDecrypted ? (
-                          <div className="text-green-600 text-sm">✓ Decrypted</div>
-                        ) : (
-                          <div className="flex gap-2">
-                            <input
-                              type="password"
-                              placeholder="Master password"
-                              value={decryptPassword}
-                              onChange={(e) => setDecryptPassword(e.target.value)}
-                              className="text-sm p-1 border border-gray-300 w-32"
-                            />
-                            <button
-                              onClick={() => handleDecrypt(secret.id)}
-                              disabled={decryptingId === secret.id}
-                              className={`text-sm px-3 py-1 border border-black ${
-                                decryptingId === secret.id
-                                  ? 'bg-gray-100 text-gray-400'
-                                  : 'hover:bg-black hover:text-white'
-                              } transition-colors`}
-                            >
-                              {decryptingId === secret.id ? 'Decrypting...' : 'Decrypt'}
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Add New Secret Form */}
-            {showAddForm && (
-              <div className="border border-black p-6 bg-gray-50">
-                <h3 className="font-semibold mb-4">Add New Secret</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <input
-                    type="text"
-                    placeholder="Title (e.g., Gmail Account)"
-                    className="p-2 border border-gray-300"
-                  />
-                  <input
-                    type="text"
-                    placeholder="Username/Email"
-                    className="p-2 border border-gray-300"
-                  />
-                  <input
-                    type="password"
-                    placeholder="Password"
-                    className="p-2 border border-gray-300"
-                  />
-                  <select className="p-2 border border-gray-300">
-                    {categories.slice(1).map(category => (
-                      <option key={category} value={category}>{category}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="flex gap-2 mt-4">
-                  <button
-                    onClick={handleAddSecret}
-                    className="bg-black text-white px-4 py-2 border border-black hover:bg-white hover:text-black transition-colors"
-                  >
-                    Save Secret
-                  </button>
-                  <button
-                    onClick={() => setShowAddForm(false)}
-                    className="bg-white text-black px-4 py-2 border border-black hover:bg-black hover:text-white transition-colors"
-                  >
-                    Cancel
-                  </button>
-                </div>
+            {/* Real Vault Secrets Manager */}
+            {userId && userKey ? (
+              <VaultSecretsManager userId={userId} userKey={userKey} />
+            ) : (
+              <div className="text-center py-8">
+                <p className="text-gray-500">Loading vault...</p>
               </div>
             )}
 
@@ -558,6 +534,8 @@ export default function ProfilePage() {
               </ul>
             </div>
           </div>
+        )}
+        </>
         )}
       </main>
     </Navigation>

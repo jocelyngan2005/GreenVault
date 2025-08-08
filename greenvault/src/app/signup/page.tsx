@@ -81,7 +81,7 @@ export default function SignupPage() {
         // Store zkLogin data for use in other pages
         localStorage.setItem('zklogin-data', JSON.stringify(zkLoginData));
 
-        window.location.href = '/role-selection'; // Redirect to role selection
+        window.location.href = '/onboarding'; // Redirect to onboarding for vault setup
 
       } catch (err) {
         console.error('OAuth callback error:', err);
@@ -164,6 +164,7 @@ export default function SignupPage() {
       localStorage.setItem('auth-token', result.data!.token);
       localStorage.setItem('user-data', JSON.stringify(result.data!.user));
       
+      // Redirect to onboarding where vault will be set up
       window.location.href = '/onboarding';
 
     } catch (err) {
@@ -375,7 +376,7 @@ export default function SignupPage() {
                   disabled={isGoogleLoading}
                   className="w-full bg-white text-black py-3 px-4 border border-black hover:bg-black hover:text-white transition-colors disabled:opacity-50"
                 >
-                  {isGoogleLoading ? 'Redirecting to Google...' : 'Sign Up with Google (zkLogin)'}
+                  {isGoogleLoading ? 'Redirecting to Google...' : 'Sign Up with Google'}
                 </button>
               </div>
             </div>

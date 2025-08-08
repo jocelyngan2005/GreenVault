@@ -1,5 +1,5 @@
-import { didManager } from '@/lib/did-manager';
-import { updateEmailUserWithDID } from '@/lib/unifiedUserStore';
+import { didManager } from '@/lib/did/did-manager';
+import { updateEmailUserWithDID } from '@/lib/zklogin/unifiedUserStore';
 import type { User } from '@/types/zklogin';
 
 // Type to handle both legacy and unified user formats
