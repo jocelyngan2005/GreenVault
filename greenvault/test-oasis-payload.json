@@ -1,0 +1,8 @@
+{
+  "action": "fetch_external_data",
+  "data": {
+    "source": "oasis",
+    "method": "blockchain",
+    "projectId": "GREEN_VAULT_TEST_001"
+  }
+}

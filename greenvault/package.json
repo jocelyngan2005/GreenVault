@@ -11,9 +11,12 @@
   "dependencies": {
     "@eslint/eslintrc": "^3.3.1",
     "@mysten/sui": "^1.37.1",
+    "@oasisprotocol/sapphire-paratime": "^2.2.0",
     "@types/jsonwebtoken": "^9.0.10",
+    "dotenv": "^17.2.1",
     "eslint": "^9.32.0",
     "eslint-config-next": "^15.4.5",
+    "ethers": "^6.15.0",
     "jose": "^6.0.12",
     "jsonwebtoken": "^9.0.2",
     "lucide-react": "^0.536.0",

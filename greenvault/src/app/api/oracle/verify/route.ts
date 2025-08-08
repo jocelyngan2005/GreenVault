@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 import { Transaction } from '@mysten/sui/transactions';
 import { SuiClient, getFullnodeUrl } from '@mysten/sui/client';
+import { oasisClient } from '@/lib/oasis-client';
 
 // Initialize Sui client for oracle interactions
 const suiClient = new SuiClient({
@@ -243,32 +244,90 @@ async function fetchExternalCO2Data(data: any) {
       });
     }
 
-    // Example: Fetch from Oasis API (if integrated)
-    if (data.source === 'oasis' && OASIS_API_URL && OASIS_API_KEY) {
-      const response = await fetch(`${OASIS_API_URL}/verify-co2`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${OASIS_API_KEY}`,
-        },
-        body: JSON.stringify({
-          projectId: data.projectId,
-          dataType: data.dataType,
-          location: data.location,
-        }),
-      });
+    // Query Oasis node directly instead of external API
+    if (data.source === 'oasis') {
+      try {
+        // Option 1: Get data from deployed oracle contract
+        if (data.method === 'contract' && data.projectId) {
+          const contractData = await oasisClient.getCO2DataFromContract(data.projectId);
+          
+          if (contractData.success) {
+            return NextResponse.json({
+              success: true,
+              data: contractData.data,
+              source: 'oasis_contract',
+            });
+          }
+        }
 
-      if (!response.ok) {
-        throw new Error(`Oasis API error: ${response.statusText}`);
+        // Option 2: Query blockchain data directly
+        if (data.method === 'blockchain') {
+          const networkInfo = await oasisClient.getNetworkInfo();
+          const balance = await oasisClient.getAccountBalance();
+          
+          // Mock CO2 data based on blockchain state
+          const mockOasisData = {
+            projectId: data.projectId,
+            co2Sequestered: Math.random() * 1000,
+            blockNumber: networkInfo.success && networkInfo.data ? networkInfo.data.currentBlock : 0,
+            networkStatus: networkInfo.success ? 'connected' : 'disconnected',
+            oracleBalance: balance.success && balance.data ? balance.data.balance : '0',
+            verificationDate: new Date().toISOString(),
+            methodology: 'Oasis-Oracle-v1.0',
+            confidence: 98,
+          };
+
+          return NextResponse.json({
+            success: true,
+            data: mockOasisData,
+            source: 'oasis_node',
+            networkInfo: networkInfo.success && networkInfo.data ? networkInfo.data : null,
+          });
+        }
+
+        // Option 3: Submit new data to contract
+        if (data.method === 'submit' && data.projectId && data.co2Amount) {
+          const dataHash = '0x' + require('crypto')
+            .createHash('sha256')
+            .update(JSON.stringify({ projectId: data.projectId, co2Amount: data.co2Amount, timestamp: Date.now() }))
+            .digest('hex');
+
+          const submitResult = await oasisClient.submitCO2Data(
+            data.projectId,
+            data.co2Amount,
+            dataHash
+          );
+
+          return NextResponse.json({
+            success: submitResult.success,
+            data: submitResult.data,
+            transactionHash: submitResult.transactionHash,
+            source: 'oasis_contract',
+            error: submitResult.error
+          });
+        }
+
+        // Default: Return network status
+        const networkInfo = await oasisClient.getNetworkInfo();
+        return NextResponse.json({
+          success: true,
+          data: {
+            message: 'Oasis node connection successful',
+            network: networkInfo.success && networkInfo.data ? networkInfo.data : null,
+            availableMethods: ['contract', 'blockchain', 'submit']
+          },
+          source: 'oasis_node',
+        });
+
+      } catch (error) {
+        console.error('Oasis node query error:', error);
+        return NextResponse.json({
+          success: false,
+          error: 'Failed to query Oasis node',
+          details: error instanceof Error ? error.message : 'Unknown error',
+          source: 'oasis_node',
+        });
       }
-
-      const oasisData = await response.json();
-
-      return NextResponse.json({
-        success: true,
-        data: oasisData,
-        source: 'oasis',
-      });
     }
 
     // Satellite data (mock implementation)
