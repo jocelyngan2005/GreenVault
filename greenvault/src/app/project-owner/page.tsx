@@ -1,8 +1,16 @@
-'use client';
+﻿'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Navigation from '@/components/Navigation';
+import { 
+  useRegisterProject, 
+  useMintCarbonCredit, 
+  useListCarbonCredit,
+  useMarketplaceStats,
+  useUserCredits
+} from '@/lib/useSmartContract';
+import { getTestUserAddress, shortenAddress, generateMockSuiObjectId } from '@/lib/suiUtils';
 
 interface Project {
   id: string;
@@ -15,37 +23,168 @@ interface Project {
   salesCount: number;
   totalRevenue: number;
   createdDate: string;
+  creditObjectId?: string; // Sui object id of minted credit
 }
 
 export default function ProjectOwnerDashboard() {
-  const [projects, setProjects] = useState<Project[]>([
-    {
-      id: '1',
-      name: 'Mangrove Restoration Project',
-      type: 'Ecosystem Restoration',
-      location: 'Philippines',
-      co2Amount: 1200,
-      status: 'verified',
-      nftMinted: true,
-      salesCount: 3,
-      totalRevenue: 66,
-      createdDate: '2024-12-15'
-    },
-    {
-      id: '2',
-      name: 'Community Solar Initiative',
-      type: 'Renewable Energy',
-      location: 'Kenya',
-      co2Amount: 2000,
-      status: 'submitted',
-      nftMinted: false,
-      salesCount: 0,
-      totalRevenue: 0,
-      createdDate: '2025-01-10'
+  // Smart contract hooks
+  const { execute: registerProject, loading: registerLoading } = useRegisterProject();
+  const { execute: mintCredit, loading: mintLoading } = useMintCarbonCredit();
+  const { execute: listCredit, loading: listLoading } = useListCarbonCredit();
+  const { data: marketStats } = useMarketplaceStats();
+  
+  // Mock user address - in real app, get from wallet/auth
+  const userAddress = getTestUserAddress();
+  const { data: userCredits, refetch: refetchCredits } = useUserCredits(userAddress);
+
+  const [projects, setProjects] = useState<Project[]>([]);
+  // Load projects from localStorage on mount
+  useEffect(() => {
+    const stored = localStorage.getItem('projects');
+    if (stored) {
+      setProjects(JSON.parse(stored));
     }
-  ]);
+  }, []);
+
+  // Helper to update localStorage when projects change
+  const updateProjects = (newProjects: Project[]) => {
+    setProjects(newProjects);
+    localStorage.setItem('projects', JSON.stringify(newProjects));
+  };
 
   const [showNewProjectForm, setShowNewProjectForm] = useState(false);
+  const [notification, setNotification] = useState<{type: 'success' | 'error', message: string} | null>(null);
+
+  // Handle NFT minting for verified projects
+  const handleMintNFT = async (project: Project) => {
+    console.log('[handleMintNFT] Called for project:', project);
+    try {
+      const creditData = {
+        projectId: project.id,
+        serialNumber: `SER_${Date.now()}`,
+        vintageYear: new Date().getFullYear(),
+        quantity: project.co2Amount,
+        methodology: 'VCS-Standard',
+        metadataUri: `https://metadata.greenvault.com/${project.id}`,
+        co2DataHash: `hash_${project.id}_${Date.now()}`,
+      };
+
+      console.log('[handleMintNFT] About to call mintCredit with:', creditData);
+      const result = await mintCredit(creditData);
+      console.log('[handleMintNFT] Mint result:', result);
+
+      // Try to extract the real credit object id from result.objectChanges
+      let creditObjectId = undefined;
+      console.log('[handleMintNFT] Full result object:', JSON.stringify(result, null, 2));
+      
+      if (result.success && Array.isArray(result.objectChanges)) {
+        console.log('[handleMintNFT] ObjectChanges array:', result.objectChanges);
+        
+        // Look for created objects
+        const createdObjects = result.objectChanges.filter(obj => 
+          obj.type === 'created' || 
+          (obj.objectChange && obj.objectChange.type === 'created')
+        );
+        console.log('[handleMintNFT] Created objects:', createdObjects);
+        
+        // Find the carbon credit object
+        const carbonCreditObject = result.objectChanges.find(obj => {
+          // Check different possible structures
+          const objectType = obj.objectType || obj.type || 
+            (obj.objectChange && obj.objectChange.objectType);
+          return objectType && 
+            typeof objectType === 'string' && 
+            objectType.includes('CarbonCredit');
+        });
+        
+        console.log('[handleMintNFT] Carbon credit object found:', carbonCreditObject);
+        
+        if (carbonCreditObject) {
+          // Extract object ID from different possible locations
+          creditObjectId = carbonCreditObject.objectId || 
+            carbonCreditObject.id ||
+            (carbonCreditObject.objectChange && carbonCreditObject.objectChange.objectId);
+        }
+      }
+      console.log('[handleMintNFT] Extracted creditObjectId:', creditObjectId);
+
+      // Fallback: if we can't extract real object ID, generate a mock one for testing
+      if (!creditObjectId && result.success) {
+        creditObjectId = `0x${Math.random().toString(16).substring(2, 10).padStart(8, '0')}mock${Date.now().toString(16)}`;
+        console.log('[handleMintNFT] Generated fallback mock creditObjectId:', creditObjectId);
+      }
+
+      if (result.success) {
+        setNotification({
+          type: 'success',
+          message: `NFT minted successfully! TX: ${result.txDigest?.slice(0, 10)}...`
+        });
+        // Update project status, store creditObjectId, and persist
+        updateProjects(projects.map(p =>
+          p.id === project.id ? { ...p, nftMinted: true, creditObjectId } : p
+        ));
+        refetchCredits();
+      } else {
+        setNotification({
+          type: 'error',
+          message: result.error || 'Minting failed'
+        });
+      }
+    } catch (error) {
+      console.error('[handleMintNFT] Error during minting:', error);
+      setNotification({
+        type: 'error',
+        message: 'Minting failed. Please try again.'
+      });
+    }
+  };
+
+  // Handle listing credit for sale
+  const handleListCredit = async (project: Project) => {
+    try {
+      // Use the real credit object ID from the project
+      const creditId = project.creditObjectId;
+      if (!creditId) {
+        setNotification({
+          type: 'error',
+          message: 'Credit object ID not found. Please mint the NFT first.'
+        });
+        return;
+      }
+      const price = Math.floor(project.co2Amount * 20 * 1000000000); // Price in mist units
+
+      const result = await listCredit(creditId, price, false);
+
+      if (result.success) {
+        setNotification({
+          type: 'success',
+          message: `Credit listed for sale! TX: ${result.txDigest?.slice(0, 10)}...`
+        });
+        // Update project status and persist
+        updateProjects(projects.map(p =>
+          p.id === project.id ? { ...p, status: 'listed' } : p
+        ));
+      } else {
+        setNotification({
+          type: 'error',
+          message: result.error || 'Listing failed'
+        });
+      }
+    } catch (error) {
+      setNotification({
+        type: 'error',
+        message: 'Listing failed. Please try again.'
+      });
+    }
+  };
+
+  // Clear notification after 5 seconds
+  useEffect(() => {
+    if (notification) {
+      const timer = setTimeout(() => setNotification(null), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [notification]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -65,10 +204,30 @@ export default function ProjectOwnerDashboard() {
     <Navigation>
       {/* Main Content */}
       <main className="max-w-6xl mx-auto px-4 py-8">
+        {/* Notification */}
+        {notification && (
+          <div className={`mb-4 p-4 border ${
+            notification.type === 'success' 
+              ? 'border-green-500 bg-green-50 text-green-800' 
+              : 'border-red-500 bg-red-50 text-red-800'
+          }`}>
+            <p>{notification.message}</p>
+          </div>
+        )}
+
         {/* Welcome Section */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold mb-2">Project Owner Dashboard</h1>
           <p className="text-gray-600">Manage your carbon offset projects and track your environmental impact.</p>
+          
+          {/* Smart Contract Stats */}
+          {marketStats && (
+            <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded">
+              <p className="text-sm text-blue-800">
+                Connected to blockchain. Your credits: {userCredits?.credits?.length || 0}
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Stats Overview */}
@@ -103,6 +262,7 @@ export default function ProjectOwnerDashboard() {
           <Link
             href="/project-owner/verification"
             className="bg-white text-black px-6 py-3 border border-black hover:bg-black hover:text-white transition-colors"
+              passHref
           >
             Submit for Verification
           </Link>
@@ -162,14 +322,28 @@ export default function ProjectOwnerDashboard() {
                           Edit
                         </button>
                         {project.status === 'verified' && !project.nftMinted && (
-                          <button className="text-sm text-green-600 hover:underline">
-                            Mint NFT
+                          <button 
+                            onClick={() => {
+                              console.log('[UI] Mint NFT button clicked for project:', project);
+                              handleMintNFT(project);
+                            }}
+                            disabled={mintLoading}
+                            className="text-sm text-green-600 hover:underline disabled:opacity-50"
+                          >
+                            {mintLoading ? 'Minting...' : 'Mint NFT'}
                           </button>
                         )}
-                        {project.nftMinted && (
-                          <button className="text-sm text-purple-600 hover:underline">
-                            List
+                        {project.nftMinted && project.status !== 'listed' && (
+                          <button 
+                            onClick={() => handleListCredit(project)}
+                            disabled={listLoading}
+                            className="text-sm text-purple-600 hover:underline disabled:opacity-50"
+                          >
+                            {listLoading ? 'Listing...' : 'List for Sale'}
                           </button>
+                        )}
+                        {project.status === 'listed' && (
+                          <span className="text-sm text-gray-500">Listed</span>
                         )}
                       </div>
                     </td>

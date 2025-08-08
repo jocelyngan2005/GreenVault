@@ -1,9 +1,11 @@
+
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Navigation from '@/components/Navigation';
 
+// Place interface at the very top, only once
 interface ProjectListing {
   id: string;
   projectName: string;
@@ -16,58 +18,66 @@ interface ProjectListing {
   totalCredits: number;
   availableCredits: number;
   verified: boolean;
-  images: string[];
-  verification_date: string;
+  images?: string[];
+  verification_date?: string;
 }
 
 export default function ProjectOwnerMarketplace() {
-  const [listings] = useState<ProjectListing[]>([
-    {
-      id: '1',
-      projectName: 'Amazon Rainforest Conservation',
-      owner: 'Indigenous Community Brazil',
-      co2Amount: 1.5,
-      pricePerTon: 25,
-      location: 'Brazil',
-      projectType: 'Forest Conservation',
-      description: 'Supporting indigenous communities in preserving 10,000 hectares of rainforest',
-      totalCredits: 1000,
-      availableCredits: 750,
-      verified: true,
-      images: [],
-      verification_date: '2024-12-15'
-    },
-    {
-      id: '2',
-      projectName: 'Solar Farm Initiative',
-      owner: 'Community Solar Kenya',
-      co2Amount: 2.0,
-      pricePerTon: 18,
-      location: 'Kenya',
-      projectType: 'Renewable Energy',
-      description: 'Clean energy generation providing power to rural communities',
-      totalCredits: 500,
-      availableCredits: 320,
-      verified: true,
-      images: [],
-      verification_date: '2025-01-05'
-    },
-    {
-      id: '3',
-      projectName: 'Mangrove Restoration',
-      owner: 'Coastal Communities Phil',
-      co2Amount: 1.2,
-      pricePerTon: 22,
-      location: 'Philippines',
-      projectType: 'Ecosystem Restoration',
-      description: 'Coastal ecosystem restoration and community livelihood support',
-      totalCredits: 800,
-      availableCredits: 600,
-      verified: true,
-      images: [],
-      verification_date: '2024-11-20'
+  const [listings, setListings] = useState<ProjectListing[]>([]);
+
+  useEffect(() => {
+    // Load listed projects from localStorage
+    const stored = localStorage.getItem('projects');
+    if (stored) {
+      const projects = JSON.parse(stored);
+      // Only include projects with status 'listed'
+      const listed = projects.filter((p: any) => p.status === 'listed');
+      // Map to ProjectListing format
+      const mapped: ProjectListing[] = listed.map((p: any) => ({
+        id: p.id,
+        projectName: p.name,
+        owner: 'You', // Or use p.owner if available
+        co2Amount: p.co2Amount,
+        pricePerTon: Math.floor((p.co2Amount * 20) / (p.co2Amount || 1)), // fallback price logic
+        location: p.location,
+        projectType: p.type,
+        description: p.description || '',
+        totalCredits: p.co2Amount,
+        availableCredits: p.co2Amount, // For demo, all credits available
+        verified: p.status === 'listed',
+        images: [],
+        verification_date: p.createdDate,
+      }));
+      setListings(mapped);
     }
-  ]);
+  }, []);
+
+  useEffect(() => {
+    // Load listed projects from localStorage
+    const stored = localStorage.getItem('projects');
+    if (stored) {
+      const projects = JSON.parse(stored);
+      // Only include projects with status 'listed'
+      const listed = projects.filter((p: any) => p.status === 'listed');
+      // Map to ProjectListing format
+      const mapped: ProjectListing[] = listed.map((p: any) => ({
+        id: p.id,
+        projectName: p.name,
+        owner: 'You', // Or use p.owner if available
+        co2Amount: p.co2Amount,
+        pricePerTon: Math.floor((p.co2Amount * 20) / (p.co2Amount || 1)), // fallback price logic
+        location: p.location,
+        projectType: p.type,
+        description: p.description || '',
+        totalCredits: p.co2Amount,
+        availableCredits: p.co2Amount, // For demo, all credits available
+        verified: p.status === 'listed',
+        images: [],
+        verification_date: p.createdDate,
+      }));
+      setListings(mapped);
+    }
+  }, []);
 
   const [selectedType, setSelectedType] = useState('All');
   const [priceRange, setPriceRange] = useState([0, 50]);
@@ -257,3 +267,4 @@ export default function ProjectOwnerMarketplace() {
     </Navigation>
   );
 }
+
