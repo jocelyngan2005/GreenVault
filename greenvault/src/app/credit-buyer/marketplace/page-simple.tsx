@@ -18,6 +18,7 @@ interface MarketplaceProject {
   expectedReturns: number;     // Expected annual carbon credit returns
   totalStaked: number;         // Total credits currently staked
   availableNFTs: number;       // NFTs available for purchase
+  status?: 'listed' | 'unlisted' | 'sold'; // Add status for filtering
 }
 
 // User's carbon credit balance
@@ -64,7 +65,8 @@ export default function CarbonCreditMarketplace() {
       verified: true,
       expectedReturns: 8,
       totalStaked: 625,
-      availableNFTs: 75
+      availableNFTs: 75,
+      status: 'listed'
     },
     {
       id: 'SOLR-2024-002',
@@ -78,7 +80,8 @@ export default function CarbonCreditMarketplace() {
       verified: true,
       expectedReturns: 6,
       totalStaked: 864,
-      availableNFTs: 32
+      availableNFTs: 32,
+      status: 'listed'
     },
     {
       id: 'MANG-2024-003',
@@ -92,7 +95,8 @@ export default function CarbonCreditMarketplace() {
       verified: true,
       expectedReturns: 7,
       totalStaked: 1320,
-      availableNFTs: 60
+      availableNFTs: 60,
+      status: 'listed'
     },
     {
       id: 'COOK-2024-004',
@@ -106,7 +110,8 @@ export default function CarbonCreditMarketplace() {
       verified: true,
       expectedReturns: 4,
       totalStaked: 1800,
-      availableNFTs: 150
+      availableNFTs: 150,
+      status: 'listed'
     }
   ]);
 
@@ -171,9 +176,10 @@ export default function CarbonCreditMarketplace() {
     }
   };
 
-  // Filter and sort projects
+  // Only allow listed projects as tradable NFTs
   const filteredProjects = projects
     .filter(project => {
+      if (project.status !== 'listed') return false;
       if (selectedType !== 'All' && project.projectType !== selectedType) return false;
       if (project.priceInCredits < priceRange[0] || project.priceInCredits > priceRange[1]) return false;
       return true;

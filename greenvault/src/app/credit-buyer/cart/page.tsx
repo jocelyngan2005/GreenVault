@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Navigation from '@/components/Navigation';
 import { cartUtils, CartItem } from '@/lib/cartUtils';
+import { smartContractService } from '@/lib/smartContractService';
 
 export default function CreditBuyerCart() {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
@@ -50,16 +51,59 @@ export default function CreditBuyerCart() {
     return cartItems.reduce((total, item) => total + (item.co2Amount * item.quantity), 0);
   };
 
-  const handleCheckout = () => {
+  const handleCheckout = async () => {
     setIsProcessing(true);
+    let anyError = false;
+    let errorMsg = '';
     
-    // Simulate checkout process
-    setTimeout(() => {
-      alert('Purchase successful! Your carbon credits have been added to your portfolio.');
-      clearCart();
+    // Helper function to convert UUID to Sui object ID format
+    const convertToSuiObjectId = (uuid: string): string => {
+      // Remove hyphens and ensure it's 32 characters (64 hex chars)
+      const cleanId = uuid.replace(/-/g, '');
+      // Pad with zeros if needed and ensure it starts with 0x
+      const paddedId = cleanId.padStart(64, '0');
+      return '0x' + paddedId;
+    };
+    
+    for (const item of cartItems) {
+      try {
+        // Convert UUID to Sui object ID format
+        const suiObjectId = convertToSuiObjectId(item.id);
+        
+        // Call smart contract buy for each item
+        const result = await smartContractService.buyCarbonCredit({
+          creditId: suiObjectId,
+          paymentAmount: item.totalPrice
+        });
+        if (!result.success) {
+          anyError = true;
+          // Provide more helpful error messages for common development issues
+          if (result.error?.includes('E_INVALID_PROJECT') || result.error?.includes('MoveAbort') || result.error?.includes('error code 5')) {
+            errorMsg = `Credit ${item.projectName} is not available for purchase. This might be because the credit needs to be listed for sale first in the marketplace.`;
+          } else {
+            errorMsg = result.error || 'Unknown error';
+          }
+          break;
+        }
+      } catch (e) {
+        anyError = true;
+        const errorStr = e instanceof Error ? e.message : 'Unknown error';
+        if (errorStr.includes('E_INVALID_PROJECT') || errorStr.includes('MoveAbort') || errorStr.includes('error code 5')) {
+          errorMsg = `Credit ${item.projectName} is not available for purchase. This might be because the credit needs to be listed for sale first in the marketplace.`;
+        } else {
+          errorMsg = errorStr;
+        }
+        break;
+      }
+    }
+    if (anyError) {
+      alert('Purchase failed: ' + errorMsg + '\n\nNote: In development, credits need to be properly minted and listed for sale before they can be purchased.');
       setIsProcessing(false);
-      // In a real app, you would process the payment and update the user's assets
-    }, 2000);
+      return;
+    }
+    alert('Purchase successful! Your carbon credits have been added to your portfolio.');
+    clearCart();
+    setIsProcessing(false);
   };
 
   if (!isMounted) {
