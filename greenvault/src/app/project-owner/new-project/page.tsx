@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Link from 'next/link';
+import { useRegisterProject } from '@/lib/useSmartContract';
+import { v4 as uuidv4 } from 'uuid'; // npm install uuid
 import Navigation from '@/components/Navigation';
 
 interface ProjectFormData {
@@ -62,6 +63,9 @@ export default function NewProjectPage() {
     'Other (specify in description)'
   ];
 
+  // Smart contract hook
+  const { execute, loading, error, data } = useRegisterProject();
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setFormData({
       ...formData,
@@ -78,16 +82,68 @@ export default function NewProjectPage() {
     }
   };
 
+  // Map project type string to number for contract
+  const projectTypeMap: Record<string, number> = {
+    'Forest Conservation': 0,
+    'Reforestation': 1,
+    'Renewable Energy': 2,
+    'Ecosystem Restoration': 3,
+    'Clean Cooking': 4,
+    'Sustainable Agriculture': 5,
+    'Waste Management': 6,
+    'Water Conservation': 7,
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
 
-    // Simulate API submission
-    setTimeout(() => {
+    // Generate a unique projectId
+    const projectId = uuidv4();
+
+    // Prepare contract data
+    const contractData = {
+      projectId,
+      name: formData.name,
+      description: formData.description,
+      location: formData.location,
+      projectType: projectTypeMap[formData.type] ?? 0,
+      co2ReductionCapacity: Number(formData.co2Impact) || 0,
+      beneficiaryCommunity: formData.communityBenefit,
+      oracleDataSource: 'oasis', // or from form if you collect it
+      didAnchor: '', // optional, if available
+    };
+
+    try {
+      const result = await execute(contractData /*, privateKey if needed */);
       setIsSubmitting(false);
-      alert('Project registered successfully! You will receive an email confirmation shortly.');
-      window.location.href = '/project-owner';
-    }, 2000);
+      if (result.success) {
+        // Save to localStorage for dashboard display
+        const stored = localStorage.getItem('projects');
+        const projects = stored ? JSON.parse(stored) : [];
+        const newProject = {
+          id: contractData.projectId,
+          name: contractData.name,
+          type: formData.type,
+          location: contractData.location,
+          co2Amount: contractData.co2ReductionCapacity,
+          status: 'submitted',
+          nftMinted: false,
+          salesCount: 0,
+          totalRevenue: 0,
+          createdDate: new Date().toISOString().slice(0, 10)
+        };
+        projects.push(newProject);
+        localStorage.setItem('projects', JSON.stringify(projects));
+        alert('Project registered successfully! Tx: ' + result.txDigest);
+        window.location.href = '/project-owner';
+      } else {
+        alert('Registration failed: ' + (result.error || 'Unknown error'));
+      }
+    } catch (err: any) {
+      setIsSubmitting(false);
+      alert('Registration failed: ' + (err?.message || 'Unknown error'));
+    }
   };
 
   const nextStep = () => {
@@ -164,23 +220,21 @@ export default function NewProjectPage() {
           {currentStep === 1 && (
             <div>
               <h2 className="text-xl font-bold mb-6">Step 1: Basic Information</h2>
-              
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-sm font-medium mb-2">Project Name *</label>
+                  <label className="block font-semibold mb-1">Project Name</label>
                   <input
                     type="text"
                     name="name"
                     value={formData.name}
                     onChange={handleInputChange}
                     className="w-full p-3 border border-gray-300"
-                    placeholder="e.g., Amazon Rainforest Conservation"
+                    placeholder="e.g. Amazon Rainforest Conservation"
                     required
                   />
                 </div>
-
                 <div>
-                  <label className="block text-sm font-medium mb-2">Project Type *</label>
+                  <label className="block font-semibold mb-1">Project Type</label>
                   <select
                     name="type"
                     value={formData.type}
@@ -188,41 +242,26 @@ export default function NewProjectPage() {
                     className="w-full p-3 border border-gray-300"
                     required
                   >
-                    <option value="">Select project type</option>
-                    {projectTypes.map(type => (
+                    <option value="">Select type</option>
+                    {projectTypes.map((type) => (
                       <option key={type} value={type}>{type}</option>
                     ))}
                   </select>
                 </div>
-
                 <div>
-                  <label className="block text-sm font-medium mb-2">Location *</label>
+                  <label className="block font-semibold mb-1">Location</label>
                   <input
                     type="text"
                     name="location"
                     value={formData.location}
                     onChange={handleInputChange}
                     className="w-full p-3 border border-gray-300"
-                    placeholder="e.g., Acre, Brazil"
+                    placeholder="e.g. Brazil, Amazon Basin"
                     required
                   />
                 </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-2">Project Area</label>
-                  <input
-                    type="text"
-                    name="area"
-                    value={formData.area}
-                    onChange={handleInputChange}
-                    className="w-full p-3 border border-gray-300"
-                    placeholder="e.g., 10,000 hectares"
-                  />
-                </div>
               </div>
-
               <div className="mt-6">
-                <label className="block text-sm font-medium mb-2">Project Description *</label>
                 <textarea
                   name="description"
                   value={formData.description}
@@ -239,61 +278,55 @@ export default function NewProjectPage() {
           {currentStep === 2 && (
             <div>
               <h2 className="text-xl font-bold mb-6">Step 2: Project Details</h2>
-              
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-sm font-medium mb-2">Expected CO₂ Impact (tons/year) *</label>
+                  <label className="block font-semibold mb-1">CO₂ Impact (tonnes/year)</label>
                   <input
                     type="number"
                     name="co2Impact"
                     value={formData.co2Impact}
                     onChange={handleInputChange}
                     className="w-full p-3 border border-gray-300"
-                    placeholder="e.g., 1200"
+                    placeholder="e.g. 10000"
                     required
                   />
                 </div>
-
                 <div>
-                  <label className="block text-sm font-medium mb-2">Project Duration *</label>
+                  <label className="block font-semibold mb-1">Area (hectares)</label>
+                  <input
+                    type="text"
+                    name="area"
+                    value={formData.area}
+                    onChange={handleInputChange}
+                    className="w-full p-3 border border-gray-300"
+                    placeholder="e.g. 500"
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold mb-1">Duration (years)</label>
                   <input
                     type="text"
                     name="duration"
                     value={formData.duration}
                     onChange={handleInputChange}
                     className="w-full p-3 border border-gray-300"
-                    placeholder="e.g., 10 years"
-                    required
+                    placeholder="e.g. 10"
                   />
                 </div>
-              </div>
-
-              <div className="mt-6">
-                <label className="block text-sm font-medium mb-2">Methodology Standard *</label>
-                <select
-                  name="methodology"
-                  value={formData.methodology}
-                  onChange={handleInputChange}
-                  className="w-full p-3 border border-gray-300"
-                  required
-                >
-                  <option value="">Select methodology</option>
-                  {methodologies.map(method => (
-                    <option key={method} value={method}>{method}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="mt-6">
-                <label className="block text-sm font-medium mb-2">Sustainability Plan *</label>
-                <textarea
-                  name="sustainabilityPlan"
-                  value={formData.sustainabilityPlan}
-                  onChange={handleInputChange}
-                  className="w-full p-3 border border-gray-300 h-32"
-                  placeholder="Describe how you will ensure the long-term sustainability of your project..."
-                  required
-                />
+                <div>
+                  <label className="block font-semibold mb-1">Methodology</label>
+                  <select
+                    name="methodology"
+                    value={formData.methodology}
+                    onChange={handleInputChange}
+                    className="w-full p-3 border border-gray-300"
+                  >
+                    <option value="">Select methodology</option>
+                    {methodologies.map((m) => (
+                      <option key={m} value={m}>{m}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
             </div>
           )}
@@ -301,43 +334,28 @@ export default function NewProjectPage() {
           {/* Step 3: Impact & Community */}
           {currentStep === 3 && (
             <div>
-              <h2 className="text-xl font-bold mb-6">Step 3: Impact & Community Benefits</h2>
-              
-              <div className="mt-6">
-                <label className="block text-sm font-medium mb-2">Community Benefits *</label>
-                <textarea
-                  name="communityBenefit"
-                  value={formData.communityBenefit}
-                  onChange={handleInputChange}
-                  className="w-full p-3 border border-gray-300 h-32"
-                  placeholder="Describe how your project will benefit local communities (jobs, education, health, etc.)..."
-                  required
-                />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+              <h2 className="text-xl font-bold mb-6">Step 3: Impact & Community</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-sm font-medium mb-2">Contact Email *</label>
+                  <label className="block font-semibold mb-1">Community Benefit</label>
                   <input
-                    type="email"
-                    name="contactEmail"
-                    value={formData.contactEmail}
+                    type="text"
+                    name="communityBenefit"
+                    value={formData.communityBenefit}
                     onChange={handleInputChange}
                     className="w-full p-3 border border-gray-300"
-                    placeholder="your@email.com"
-                    required
+                    placeholder="e.g. Local jobs, education, health..."
                   />
                 </div>
-
                 <div>
-                  <label className="block text-sm font-medium mb-2">Contact Phone</label>
+                  <label className="block font-semibold mb-1">Sustainability Plan</label>
                   <input
-                    type="tel"
-                    name="contactPhone"
-                    value={formData.contactPhone}
+                    type="text"
+                    name="sustainabilityPlan"
+                    value={formData.sustainabilityPlan}
                     onChange={handleInputChange}
                     className="w-full p-3 border border-gray-300"
-                    placeholder="+1 234 567 8900"
+                    placeholder="e.g. Ongoing monitoring, community engagement..."
                   />
                 </div>
               </div>
@@ -348,60 +366,45 @@ export default function NewProjectPage() {
           {currentStep === 4 && (
             <div>
               <h2 className="text-xl font-bold mb-6">Step 4: Documentation</h2>
-              
-              <div className="mb-6">
-                <label className="block text-sm font-medium mb-2">Upload Supporting Documents</label>
-                <div className="border border-dashed border-gray-400 p-6 text-center">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block font-semibold mb-1">Contact Email</label>
+                  <input
+                    type="email"
+                    name="contactEmail"
+                    value={formData.contactEmail}
+                    onChange={handleInputChange}
+                    className="w-full p-3 border border-gray-300"
+                    placeholder="e.g. you@email.com"
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold mb-1">Contact Phone</label>
+                  <input
+                    type="tel"
+                    name="contactPhone"
+                    value={formData.contactPhone}
+                    onChange={handleInputChange}
+                    className="w-full p-3 border border-gray-300"
+                    placeholder="e.g. +1234567890"
+                  />
+                </div>
+                <div className="col-span-2">
+                  <label className="block font-semibold mb-1">Upload Documents</label>
                   <input
                     type="file"
-                    onChange={handleFileUpload}
-                    className="hidden"
-                    id="file-upload"
                     multiple
-                    accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                    onChange={handleFileUpload}
+                    className="w-full"
                   />
-                  <label htmlFor="file-upload" className="cursor-pointer">
-                    <div className="text-gray-500 mb-2">
-                      📄 Click to upload or drag and drop
-                    </div>
-                    <p className="text-sm text-gray-600">
-                      PDF, Word documents, or images (max 10MB each)
-                    </p>
-                  </label>
-                </div>
-                
-                {formData.documents.length > 0 && (
-                  <div className="mt-4">
-                    <p className="text-sm font-medium mb-2">Uploaded files:</p>
-                    <ul className="text-sm text-gray-600">
-                      {formData.documents.map((file, index) => (
-                        <li key={index}>• {file.name}</li>
+                  {formData.documents.length > 0 && (
+                    <ul className="mt-2 text-sm text-gray-600">
+                      {formData.documents.map((file, idx) => (
+                        <li key={idx}>{file.name}</li>
                       ))}
                     </ul>
-                  </div>
-                )}
-              </div>
-
-              <div className="bg-gray-50 p-4 rounded border">
-                <h3 className="font-medium mb-2">Recommended Documents:</h3>
-                <ul className="text-sm text-gray-600 space-y-1">
-                  <li>• Project design document</li>
-                  <li>• Land ownership or usage rights documentation</li>
-                  <li>• Environmental impact assessment</li>
-                  <li>• Community consent letters</li>
-                  <li>• Financial projections</li>
-                  <li>• Previous project photos (if applicable)</li>
-                </ul>
-              </div>
-
-              <div className="mt-6 p-4 border border-orange-300 bg-orange-50">
-                <h3 className="font-medium text-orange-800 mb-2">⚠️ Before You Submit</h3>
-                <ul className="text-sm text-orange-700 space-y-1">
-                  <li>• Ensure all information is accurate and complete</li>
-                  <li>• Your project will undergo a verification process</li>
-                  <li>• You'll be contacted within 5-7 business days</li>
-                  <li>• Verification typically takes 2-4 weeks</li>
-                </ul>
+                  )}
+                </div>
               </div>
             </div>
           )}
@@ -411,10 +414,10 @@ export default function NewProjectPage() {
             <button
               type="button"
               onClick={prevStep}
-              disabled={currentStep === 1}
+              disabled={currentStep === 1 || isSubmitting || loading}
               className={`px-6 py-3 border border-black ${
-                currentStep === 1 
-                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+                currentStep === 1 || isSubmitting || loading
+                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                   : 'bg-white text-black hover:bg-black hover:text-white'
               } transition-colors`}
             >
@@ -425,24 +428,24 @@ export default function NewProjectPage() {
               <button
                 type="button"
                 onClick={nextStep}
-                className="px-6 py-3 bg-black text-white border border-black hover:bg-white hover:text-black transition-colors"
+                disabled={isSubmitting || loading}
+                className={`px-6 py-3 border border-black bg-green-600 text-white hover:bg-green-700 transition-colors ${isSubmitting || loading ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
-                Next Step
+                Next
               </button>
             ) : (
               <button
                 type="submit"
-                disabled={isSubmitting}
-                className={`px-6 py-3 ${
-                  isSubmitting 
-                    ? 'bg-gray-400 cursor-not-allowed' 
-                    : 'bg-green-600 hover:bg-green-700'
-                } text-white border transition-colors`}
+                disabled={isSubmitting || loading}
+                className={`px-6 py-3 border border-black bg-green-600 text-white hover:bg-green-700 transition-colors ${isSubmitting || loading ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
-                {isSubmitting ? 'Submitting...' : 'Submit Project'}
+                {isSubmitting || loading ? 'Registering...' : 'Register Project'}
               </button>
             )}
           </div>
+          {error && (
+            <div className="mt-4 text-red-600 font-semibold">{error}</div>
+          )}
         </form>
       </main>
 
@@ -479,52 +482,14 @@ export default function NewProjectPage() {
                 onClick={() => setShowAIAssistant(false)}
                 className="w-8 h-8 rounded-full border border-black hover:bg-black hover:text-white flex items-center justify-center transition-colors"
               >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <line x1="18" y1="6" x2="6" y2="18"></line>
-                  <line x1="6" y1="6" x2="18" y2="18"></line>
-                </svg>
+                ×
               </button>
             </div>
 
             {/* Content */}
             <div className="flex-1 overflow-y-auto p-4">
               <div className="space-y-4">
-                <div className="p-4 rounded-lg bg-gray-50">
-                  <h3 className="font-semibold mb-2">🌱 Project Creation Assistant</h3>
-                  <p className="text-sm opacity-80">
-                    I can help you optimize your project registration, suggest verification standards, estimate carbon impact, and guide you through best practices.
-                  </p>
-                </div>
-
-                {/* Sample conversation */}
-                <div className="space-y-3">
-                  <div className="p-3 rounded-lg bg-blue-50 ml-8">
-                    <p className="text-sm">What verification standard should I choose for my forest conservation project?</p>
-                  </div>
-                  
-                  <div className="p-3 rounded-lg bg-gray-100 mr-8">
-                    <p className="text-sm">
-                      For forest conservation projects, I recommend:
-                      <br />• <strong>VCS (Verified Carbon Standard)</strong> - Most widely accepted, good for REDD+ projects
-                      <br />• <strong>Plan Vivo</strong> - Excellent for community-focused projects
-                      <br />• <strong>Gold Standard</strong> - Higher premium, strong social co-benefits focus
-                    </p>
-                  </div>
-
-                  <div className="p-3 rounded-lg bg-blue-50 ml-8">
-                    <p className="text-sm">How do I calculate the CO₂ impact accurately?</p>
-                  </div>
-                  
-                  <div className="p-3 rounded-lg bg-gray-100 mr-8">
-                    <p className="text-sm">
-                      For accurate CO₂ calculations:
-                      <br />• Use satellite monitoring data for baseline measurements
-                      <br />• Apply appropriate emission factors for your region
-                      <br />• Consider permanence risks and buffer requirements
-                      <br />• Factor in leakage prevention measures
-                    </p>
-                  </div>
-                </div>
+                {/* AI assistant content here */}
               </div>
             </div>
 
@@ -540,10 +505,10 @@ export default function NewProjectPage() {
                   className="flex-1 px-3 py-2 border border-black bg-white text-black placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-black"
                   autoFocus
                 />
-                <button 
+                <button
+                  type="button"
                   onClick={handleSendMessage}
-                  disabled={!assistantMessage.trim()}
-                  className="px-4 py-2 bg-black text-white hover:bg-gray-800 disabled:bg-gray-300 disabled:text-gray-500 transition-colors disabled:cursor-not-allowed"
+                  className="px-4 py-2 bg-black text-white rounded hover:bg-gray-800"
                 >
                   Send
                 </button>

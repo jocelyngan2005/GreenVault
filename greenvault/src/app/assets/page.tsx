@@ -56,66 +56,42 @@ export default function AssetsPage() {
   const [isMounted, setIsMounted] = useState(false);
   const [activeTab, setActiveTab] = useState<'assets' | 'history' | 'analytics'>('assets');
 
-  // Project Owner mock data
-  const [mintedNFTs] = useState<MintedNFT[]>([
-    {
-      id: '1',
-      projectName: 'Amazon Rainforest Conservation',
-      tokenId: 'GV-ARF-001',
-      co2Amount: 1.5,
-      pricePerTon: 25,
-      location: 'Brazil',
-      projectType: 'Forest Conservation',
-      mintDate: '2025-01-10',
-      status: 'listed',
-      totalSupply: 1000,
-      soldAmount: 750,
-      earnings: 18750,
-      metadata: {
-        verificationStandard: 'VCS',
-        vintage: '2024',
-        projectDescription: 'Supporting indigenous communities in preserving 10,000 hectares of rainforest'
-      }
-    },
-    {
-      id: '2',
-      projectName: 'Solar Farm Initiative',
-      tokenId: 'GV-SFI-002',
-      co2Amount: 2.0,
-      pricePerTon: 18,
-      location: 'Kenya',
-      projectType: 'Renewable Energy',
-      mintDate: '2025-01-05',
-      status: 'sold',
-      totalSupply: 500,
-      soldAmount: 500,
-      earnings: 9000,
-      metadata: {
-        verificationStandard: 'Gold Standard',
-        vintage: '2024',
-        projectDescription: 'Clean energy generation providing power to rural communities'
-      }
-    },
-    {
-      id: '3',
-      projectName: 'Mangrove Restoration',
-      tokenId: 'GV-MR-003',
-      co2Amount: 1.2,
-      pricePerTon: 22,
-      location: 'Philippines',
-      projectType: 'Ecosystem Restoration',
-      mintDate: '2024-12-20',
-      status: 'unlisted',
-      totalSupply: 800,
-      soldAmount: 0,
-      earnings: 0,
-      metadata: {
-        verificationStandard: 'CDM',
-        vintage: '2024',
-        projectDescription: 'Coastal ecosystem restoration and community livelihood support'
+  // Project Owner NFTs loaded from localStorage (dashboard logic)
+  const [mintedNFTs, setMintedNFTs] = useState<MintedNFT[]>([]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && userRole === 'project-owner') {
+      const storedProjects = localStorage.getItem('projects');
+      if (storedProjects) {
+        try {
+          const parsed = JSON.parse(storedProjects);
+          setMintedNFTs(parsed.map((p: any) => ({
+            id: p.id,
+            projectName: p.name,
+            tokenId: p.creditObjectId || p.id,
+            co2Amount: p.co2Amount,
+            pricePerTon: p.pricePerTon || 20,
+            location: p.location,
+            projectType: p.type,
+            mintDate: p.createdDate || '',
+            status: p.status === 'listed' ? 'listed' : (p.status === 'sold' ? 'sold' : 'unlisted'),
+            totalSupply: p.totalSupply || p.co2Amount || 0,
+            soldAmount: p.salesCount || 0,
+            earnings: p.totalRevenue || 0,
+            metadata: {
+              verificationStandard: p.verificationStandard || 'VCS',
+              vintage: p.vintage || '2024',
+              projectDescription: p.description || ''
+            }
+          })));
+        } catch (e) {
+          setMintedNFTs([]);
+        }
+      } else {
+        setMintedNFTs([]);
       }
     }
-  ]);
+  }, [userRole]);
 
   // Credit Buyer mock data
   const [purchasedNFTs] = useState<PurchasedNFT[]>([
@@ -229,19 +205,19 @@ export default function AssetsPage() {
 
   // Project Owner specific calculations
   const getTotalEarnings = () => {
-    return mintedNFTs.reduce((sum, nft) => sum + nft.earnings, 0);
+    return Array.isArray(mintedNFTs) ? mintedNFTs.reduce((sum, nft) => sum + (nft.earnings || 0), 0) : 0;
   };
 
   const getTotalMinted = () => {
-    return mintedNFTs.reduce((sum, nft) => sum + nft.totalSupply, 0);
+    return Array.isArray(mintedNFTs) ? mintedNFTs.reduce((sum, nft) => sum + (nft.totalSupply || 0), 0) : 0;
   };
 
   const getTotalSold = () => {
-    return mintedNFTs.reduce((sum, nft) => sum + nft.soldAmount, 0);
+    return Array.isArray(mintedNFTs) ? mintedNFTs.reduce((sum, nft) => sum + (nft.soldAmount || 0), 0) : 0;
   };
 
   const getActiveListing = () => {
-    return mintedNFTs.filter(nft => nft.status === 'listed').length;
+    return Array.isArray(mintedNFTs) ? mintedNFTs.filter(nft => nft.status === 'listed').length : 0;
   };
 
   // Credit Buyer specific calculations
@@ -381,83 +357,87 @@ export default function AssetsPage() {
         {/* Assets Tab - Project Owner */}
         {activeTab === 'assets' && userRole === 'project-owner' && (
           <div className="space-y-6">
-            {mintedNFTs.map(nft => (
-              <div key={nft.id} className="border border-black p-6">
-                <div className="flex justify-between items-start mb-4">
-                  <div>
-                    <h3 className="text-lg font-bold">{nft.projectName}</h3>
-                    <p className="text-gray-600">{nft.location} • {nft.projectType}</p>
-                    <p className="text-sm text-gray-500">Token ID: {nft.tokenId}</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className={`text-sm px-2 py-1 border ${
-                      nft.status === 'listed' 
-                        ? 'bg-green-100 text-green-800 border-green-300'
-                        : nft.status === 'sold'
-                        ? 'bg-blue-100 text-blue-800 border-blue-300'
-                        : 'bg-gray-100 text-gray-800 border-gray-300'
-                    }`}>
-                      {nft.status === 'listed' ? 'Listed' : nft.status === 'sold' ? 'Sold Out' : 'Unlisted'}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="grid md:grid-cols-4 gap-4 mb-4">
-                  <div>
-                    <p className="text-sm text-gray-600">CO₂ per Credit</p>
-                    <p className="font-semibold">{nft.co2Amount} tons</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600">Price per Ton</p>
-                    <p className="font-semibold">${nft.pricePerTon}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600">Supply</p>
-                    <p className="font-semibold">{nft.totalSupply.toLocaleString()}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600">Sold</p>
-                    <p className="font-semibold">{nft.soldAmount.toLocaleString()}</p>
-                  </div>
-                </div>
-
-                <div className="bg-gray-50 p-4 rounded mb-4">
-                  <h4 className="font-semibold mb-2">Project Metadata</h4>
-                  <div className="grid md:grid-cols-3 gap-4 text-sm">
+            {mintedNFTs.length === 0 ? (
+              <div className="text-center text-gray-500 py-12">No assets found. Register a project to get started.</div>
+            ) : (
+              mintedNFTs.map(nft => (
+                <div key={nft.id} className="border border-black p-6">
+                  <div className="flex justify-between items-start mb-4">
                     <div>
-                      <span className="text-gray-600">Standard: </span>
-                      <span className="font-medium">{nft.metadata.verificationStandard}</span>
+                      <h3 className="text-lg font-bold">{nft.projectName}</h3>
+                      <p className="text-gray-600">{nft.location} • {nft.projectType}</p>
+                      <p className="text-sm text-gray-500">Token ID: {nft.tokenId}</p>
                     </div>
-                    <div>
-                      <span className="text-gray-600">Vintage: </span>
-                      <span className="font-medium">{nft.metadata.vintage}</span>
-                    </div>
-                    <div>
-                      <span className="text-gray-600">Earnings: </span>
-                      <span className="font-medium text-green-600">${nft.earnings.toLocaleString()}</span>
+                    <div className="flex items-center gap-2">
+                      <span className={`text-sm px-2 py-1 border ${
+                        nft.status === 'listed' 
+                          ? 'bg-green-100 text-green-800 border-green-300'
+                          : nft.status === 'sold'
+                          ? 'bg-blue-100 text-blue-800 border-blue-300'
+                          : 'bg-gray-100 text-gray-800 border-gray-300'
+                      }`}>
+                        {nft.status === 'listed' ? 'Listed' : nft.status === 'sold' ? 'Sold Out' : 'Unlisted'}
+                      </span>
                     </div>
                   </div>
-                  <p className="text-sm text-gray-700 mt-2">{nft.metadata.projectDescription}</p>
-                </div>
 
-                <div className="flex gap-2">
-                  {nft.status === 'unlisted' && (
-                    <button
-                      onClick={() => handleListNFT(nft.id)}
-                      className="bg-black text-white px-4 py-2 border border-black hover:bg-white hover:text-black transition-colors"
+                  <div className="grid md:grid-cols-4 gap-4 mb-4">
+                    <div>
+                      <p className="text-sm text-gray-600">CO₂ per Credit</p>
+                      <p className="font-semibold">{nft.co2Amount} tons</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600">Price per Ton</p>
+                      <p className="font-semibold">${nft.pricePerTon}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600">Supply</p>
+                      <p className="font-semibold">{nft.totalSupply?.toLocaleString()}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600">Sold</p>
+                      <p className="font-semibold">{nft.soldAmount?.toLocaleString()}</p>
+                    </div>
+                  </div>
+
+                  <div className="bg-gray-50 p-4 rounded mb-4">
+                    <h4 className="font-semibold mb-2">Project Metadata</h4>
+                    <div className="grid md:grid-cols-3 gap-4 text-sm">
+                      <div>
+                        <span className="text-gray-600">Standard: </span>
+                        <span className="font-medium">{nft.metadata.verificationStandard}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-600">Vintage: </span>
+                        <span className="font-medium">{nft.metadata.vintage}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-600">Earnings: </span>
+                        <span className="font-medium text-green-600">${nft.earnings?.toLocaleString()}</span>
+                      </div>
+                    </div>
+                    <p className="text-sm text-gray-700 mt-2">{nft.metadata.projectDescription}</p>
+                  </div>
+
+                  <div className="flex gap-2">
+                    {nft.status === 'unlisted' && (
+                      <button
+                        onClick={() => handleListNFT(nft.id)}
+                        className="bg-black text-white px-4 py-2 border border-black hover:bg-white hover:text-black transition-colors"
+                      >
+                        List on Marketplace
+                      </button>
+                    )}
+                    <Link
+                      href={`/project-owner/projects/${nft.id}`}
+                      className="bg-white text-black px-4 py-2 border border-black hover:bg-black hover:text-white transition-colors inline-block"
                     >
-                      List on Marketplace
-                    </button>
-                  )}
-                  <Link
-                    href={`/project-owner/projects/${nft.id}`}
-                    className="bg-white text-black px-4 py-2 border border-black hover:bg-black hover:text-white transition-colors inline-block"
-                  >
-                    View Details
-                  </Link>
+                      View Details
+                    </Link>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         )}
 

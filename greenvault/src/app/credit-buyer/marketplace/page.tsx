@@ -21,6 +21,7 @@ interface ProjectNFT {
   verified: boolean;
   verificationDate: string;
   images: string[];
+  status?: 'listed' | 'unlisted' | 'sold'; // Add status for filtering
   impactMetrics: {
     communitiesBenefited: number;
     jobsCreated: number;
@@ -49,9 +50,9 @@ interface CarbonCredit {
 export default function CreditBuyerMarketplace() {
   // User's carbon credit balance (replaces USD wallet)
   const [userBalance, setUserBalance] = useState<CarbonCreditBalance>({
-    totalCredits: 150,          // User has 150 carbon credits
-    availableCredits: 120,      // 120 available for trading
-    lockedCredits: 30,          // 30 locked in current investments
+    totalCredits: 150,
+    availableCredits: 120,
+    lockedCredits: 30,
     creditTypes: {
       forestConservation: 50,
       renewableEnergy: 40,
@@ -62,86 +63,140 @@ export default function CreditBuyerMarketplace() {
     }
   });
 
-  const [projectNFTs] = useState<ProjectNFT[]>([
-    {
-      id: '1',
-      projectName: 'Amazon Rainforest Conservation',
-      owner: 'Indigenous Community Brazil',
-      realWorldCO2Impact: 1500,  // This project offsets 1,500 tons CO2 annually
-      priceInCredits: 25,        // Costs 25 carbon credits per NFT
-      minimumStake: 5,           // Minimum 5 carbon credits to participate
-      location: 'Brazil',
-      projectType: 'Forest Conservation',
-      description: 'Supporting indigenous communities in preserving 10,000 hectares of rainforest',
-      totalNFTs: 100,            // 100 NFTs represent this project
-      availableNFTs: 75,         // 75 still available
-      verified: true,
-      verificationDate: '2024-12-15',
-      images: [],
-      impactMetrics: {
-        communitiesBenefited: 5,
-        jobsCreated: 120,
-        biodiversityScore: 95
+  // Load listed projects from localStorage and merge with hardcoded ones
+  const [projectNFTs, setProjectNFTs] = useState<ProjectNFT[]>([]);
+
+  useEffect(() => {
+    // Get hardcoded demo projects
+    const demoProjects: ProjectNFT[] = [
+      {
+        id: '1',
+        projectName: 'Amazon Rainforest Conservation',
+        owner: 'Indigenous Community Brazil',
+        realWorldCO2Impact: 1500,
+        priceInCredits: 25,
+        minimumStake: 5,
+        location: 'Brazil',
+        projectType: 'Forest Conservation',
+        description: 'Supporting indigenous communities in preserving 10,000 hectares of rainforest',
+        totalNFTs: 100,
+        availableNFTs: 75,
+        verified: true,
+        verificationDate: '2024-12-15',
+        images: [],
+        status: 'listed',
+        impactMetrics: {
+          communitiesBenefited: 5,
+          jobsCreated: 120,
+          biodiversityScore: 95
+        },
+        stakingRewards: {
+          expectedAnnualReturn: 8,
+          stakingPeriod: '12 months',
+          totalStaked: 625
+        }
       },
-      stakingRewards: {
-        expectedAnnualReturn: 8,  // 8 carbon credits per year return
-        stakingPeriod: '12 months',
-        totalStaked: 625          // 625 carbon credits currently staked by all users
+      {
+        id: '2',
+        projectName: 'Solar Farm Initiative',
+        owner: 'Community Solar Kenya',
+        realWorldCO2Impact: 2000,
+        priceInCredits: 18,
+        minimumStake: 3,
+        location: 'Kenya',
+        projectType: 'Renewable Energy',
+        description: 'Clean energy generation providing power to rural communities',
+        totalNFTs: 80,
+        availableNFTs: 32,
+        verified: true,
+        verificationDate: '2025-01-05',
+        images: [],
+        status: 'listed',
+        impactMetrics: {
+          communitiesBenefited: 8,
+          jobsCreated: 75,
+          biodiversityScore: 60
+        },
+        stakingRewards: {
+          expectedAnnualReturn: 6,
+          stakingPeriod: '18 months',
+          totalStaked: 864
+        }
+      },
+      {
+        id: '3',
+        projectName: 'Mangrove Restoration',
+        owner: 'Coastal Communities Phil',
+        realWorldCO2Impact: 1200,
+        priceInCredits: 22,
+        minimumStake: 4,
+        location: 'Philippines',
+        projectType: 'Ecosystem Restoration',
+        description: 'Coastal ecosystem restoration and community livelihood support',
+        totalNFTs: 120,
+        availableNFTs: 60,
+        verified: true,
+        verificationDate: '2024-11-20',
+        images: [],
+        status: 'listed',
+        impactMetrics: {
+          communitiesBenefited: 12,
+          jobsCreated: 200,
+          biodiversityScore: 88
+        },
+        stakingRewards: {
+          expectedAnnualReturn: 7,
+          stakingPeriod: '15 months',
+          totalStaked: 1320
+        }
       }
-    },
-    {
-      id: '2',
-      projectName: 'Solar Farm Initiative',
-      owner: 'Community Solar Kenya',
-      realWorldCO2Impact: 2000,
-      priceInCredits: 18,
-      minimumStake: 3,
-      location: 'Kenya',
-      projectType: 'Renewable Energy',
-      description: 'Clean energy generation providing power to rural communities',
-      totalNFTs: 80,
-      availableNFTs: 32,
-      verified: true,
-      verificationDate: '2025-01-05',
-      images: [],
-      impactMetrics: {
-        communitiesBenefited: 8,
-        jobsCreated: 75,
-        biodiversityScore: 60
-      },
-      stakingRewards: {
-        expectedAnnualReturn: 6,
-        stakingPeriod: '18 months',
-        totalStaked: 864
-      }
-    },
-    {
-      id: '3',
-      projectName: 'Mangrove Restoration',
-      owner: 'Coastal Communities Phil',
-      realWorldCO2Impact: 1200,
-      priceInCredits: 22,
-      minimumStake: 4,
-      location: 'Philippines',
-      projectType: 'Ecosystem Restoration',
-      description: 'Coastal ecosystem restoration and community livelihood support',
-      totalNFTs: 120,
-      availableNFTs: 60,
-      verified: true,
-      verificationDate: '2024-11-20',
-      images: [],
-      impactMetrics: {
-        communitiesBenefited: 12,
-        jobsCreated: 200,
-        biodiversityScore: 88
-      },
-      stakingRewards: {
-        expectedAnnualReturn: 7,
-        stakingPeriod: '15 months',
-        totalStaked: 1320
+    ];
+
+    // Load project owner projects from localStorage
+    let listedProjects: ProjectNFT[] = [];
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('projects');
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          listedProjects = parsed
+            .filter((p: any) => p.status === 'listed')
+            .map((p: any) => ({
+              id: p.id,
+              projectName: p.name,
+              owner: p.owner || 'Project Owner',
+              realWorldCO2Impact: p.co2Amount,
+              priceInCredits: p.pricePerTon || 20,
+              minimumStake: 1,
+              location: p.location,
+              projectType: p.type,
+              description: p.description || '',
+              totalNFTs: p.totalSupply || p.co2Amount || 0,
+              availableNFTs: p.availableNFTs || 1,
+              verified: true,
+              verificationDate: p.createdDate || '',
+              images: [],
+              status: 'listed',
+              impactMetrics: {
+                communitiesBenefited: p.communitiesBenefited || 0,
+                jobsCreated: p.jobsCreated || 0,
+                biodiversityScore: p.biodiversityScore || 0
+              },
+              stakingRewards: {
+                expectedAnnualReturn: p.annualReturns || 0,
+                stakingPeriod: '12 months',
+                totalStaked: p.stakingValue || 0
+              }
+            }));
+        } catch (e) {
+          // ignore
+        }
       }
     }
-  ]);
+    // Merge and deduplicate by id (localStorage takes precedence)
+    const merged = [...listedProjects, ...demoProjects.filter(d => !listedProjects.some(p => p.id === d.id))];
+    setProjectNFTs(merged);
+  }, []);
 
   const [selectedType, setSelectedType] = useState('All');
   const [priceRange, setPriceRange] = useState([0, 50]);
@@ -191,8 +246,10 @@ export default function CreditBuyerMarketplace() {
     }
   };
 
+  // Only allow listed credits as tradable NFTs
   const filteredAndSortedCredits = projectNFTs
     .filter((project: ProjectNFT) => {
+      if (project.status !== 'listed') return false;
       if (selectedType !== 'All' && project.projectType !== selectedType) return false;
       if (project.priceInCredits < priceRange[0] || project.priceInCredits > priceRange[1]) return false;
       return true;
