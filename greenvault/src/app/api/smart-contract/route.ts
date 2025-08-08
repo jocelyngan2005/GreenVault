@@ -1,8 +1,9 @@
-// src/app/api/smart-contract/route.ts
+﻿// src/app/api/smart-contract/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 import { Transaction } from '@mysten/sui/transactions';
 import { SuiClient, getFullnodeUrl } from '@mysten/sui/client';
+import { isValidSuiAddress, normalizeSuiAddress, isMockObjectId } from '@/lib/suiUtils';
 
 // Initialize Sui client
 const suiClient = new SuiClient({
@@ -17,8 +18,53 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { action, data, privateKey } = body;
 
+    // Validate required parameters
+    if (!action) {
+      return NextResponse.json(
+        { success: false, error: 'Action is required' },
+        { status: 400 }
+      );
+    }
+
+    if (!data) {
+      return NextResponse.json(
+        { success: false, error: 'Data is required' },
+        { status: 400 }
+      );
+    }
+
+    // Get private key from request or environment
+    const effectivePrivateKey = privateKey || process.env.ADMIN_PRIVATE_KEY;
+    
+    if (!effectivePrivateKey) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: 'Private key is required. Please provide a private key or set ADMIN_PRIVATE_KEY in environment variables.' 
+        },
+        { status: 400 }
+      );
+    }
+
+    // Validate private key format
+    let keyBuffer: Buffer;
+    try {
+      keyBuffer = Buffer.from(effectivePrivateKey, 'base64');
+      if (keyBuffer.length !== 32) {
+        throw new Error('Invalid key length');
+      }
+    } catch (keyError) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: 'Invalid private key format. Private key must be a valid base64-encoded 32-byte key.' 
+        },
+        { status: 400 }
+      );
+    }
+
     // Create keypair from private key
-    const keypair = Ed25519Keypair.fromSecretKey(Buffer.from(privateKey, 'base64'));
+    const keypair = Ed25519Keypair.fromSecretKey(keyBuffer);
 
     switch (action) {
       case 'register_project':
@@ -176,6 +222,47 @@ async function mintCarbonCredit(data: any, keypair: Ed25519Keypair) {
 }
 
 async function listCreditForSale(data: any, keypair: Ed25519Keypair) {
+  // Validate credit ID format
+  if (!data.creditId || !isValidSuiAddress(data.creditId)) {
+    return NextResponse.json({
+      success: false,
+      error: `Invalid credit ID format: ${data.creditId}. Credit ID must be a valid Sui object ID starting with 0x.`
+    }, { status: 400 });
+  }
+
+  // Validate required fields
+  if (typeof data.price !== 'number' || data.price <= 0) {
+    return NextResponse.json({
+      success: false,
+      error: 'Price must be a positive number'
+    }, { status: 400 });
+  }
+
+  if (typeof data.reservedForCommunity !== 'boolean') {
+    return NextResponse.json({
+      success: false,
+      error: 'reservedForCommunity must be a boolean'
+    }, { status: 400 });
+  }
+
+  // For development/testing, if we get a mock credit ID, return a mock success response
+  if (isMockObjectId(data.creditId)) {
+    return NextResponse.json({
+      success: true,
+      txDigest: `mock_tx_${Date.now()}`,
+      message: `Mock credit ${data.creditId} listed for sale at ${data.price} mist units`,
+      note: 'This is a mock transaction for development. In production, this would interact with the Sui blockchain.',
+      events: [
+        {
+          type: 'CreditListed',
+          creditId: data.creditId,
+          price: data.price,
+          reservedForCommunity: data.reservedForCommunity
+        }
+      ],
+    });
+  }
+
   const tx = new Transaction();
   
   const marketplaceId = process.env.MARKETPLACE_ID || '0x2';
@@ -207,6 +294,40 @@ async function listCreditForSale(data: any, keypair: Ed25519Keypair) {
 }
 
 async function buyCarbonCredit(data: any, keypair: Ed25519Keypair) {
+  // Validate credit ID format
+  if (!data.creditId || !isValidSuiAddress(data.creditId)) {
+    return NextResponse.json({
+      success: false,
+      error: `Invalid credit ID format: ${data.creditId}. Credit ID must be a valid Sui object ID starting with 0x.`
+    }, { status: 400 });
+  }
+
+  // Validate payment amount
+  if (typeof data.paymentAmount !== 'number' || data.paymentAmount <= 0) {
+    return NextResponse.json({
+      success: false,
+      error: 'Payment amount must be a positive number'
+    }, { status: 400 });
+  }
+
+  // For development/testing, if we get a mock credit ID, return a mock success response
+  if (isMockObjectId(data.creditId)) {
+    return NextResponse.json({
+      success: true,
+      txDigest: `mock_tx_${Date.now()}`,
+      message: `Mock purchase of credit ${data.creditId} for ${data.paymentAmount} mist units`,
+      note: 'This is a mock transaction for development. In production, this would interact with the Sui blockchain.',
+      events: [
+        {
+          type: 'CreditPurchased',
+          creditId: data.creditId,
+          paymentAmount: data.paymentAmount,
+          buyer: 'mock_buyer_address'
+        }
+      ],
+    });
+  }
+
   const tx = new Transaction();
   
   const marketplaceId = process.env.MARKETPLACE_ID || '0x2';
@@ -238,6 +359,40 @@ async function buyCarbonCredit(data: any, keypair: Ed25519Keypair) {
 }
 
 async function retireCarbonCredit(data: any, keypair: Ed25519Keypair) {
+  // Validate credit ID format
+  if (!data.creditId || !isValidSuiAddress(data.creditId)) {
+    return NextResponse.json({
+      success: false,
+      error: `Invalid credit ID format: ${data.creditId}. Credit ID must be a valid Sui object ID starting with 0x.`
+    }, { status: 400 });
+  }
+
+  // Validate retirement reason
+  if (!data.retirementReason || typeof data.retirementReason !== 'string') {
+    return NextResponse.json({
+      success: false,
+      error: 'Retirement reason is required and must be a string'
+    }, { status: 400 });
+  }
+
+  // For development/testing, if we get a mock credit ID, return a mock success response
+  if (isMockObjectId(data.creditId)) {
+    return NextResponse.json({
+      success: true,
+      txDigest: `mock_tx_${Date.now()}`,
+      message: `Mock retirement of credit ${data.creditId} with reason: ${data.retirementReason}`,
+      note: 'This is a mock transaction for development. In production, this would interact with the Sui blockchain.',
+      events: [
+        {
+          type: 'CreditRetired',
+          creditId: data.creditId,
+          retirementReason: data.retirementReason,
+          retiredBy: 'mock_user_address'
+        }
+      ],
+    });
+  }
+
   const tx = new Transaction();
   
   const registryId = process.env.PROJECT_REGISTRY_ID || '0x1';
@@ -331,27 +486,146 @@ async function getStats() {
     const marketplaceId = process.env.MARKETPLACE_ID || '0x2';
     const registryId = process.env.PROJECT_REGISTRY_ID || '0x1';
 
-    const [marketplace, registry] = await Promise.all([
+    // Validate the object IDs before making requests
+    if (!isValidSuiAddress(marketplaceId) || !isValidSuiAddress(registryId)) {
+      return NextResponse.json({
+        success: false,
+        error: 'Invalid contract object IDs configured',
+        details: 'MARKETPLACE_ID and PROJECT_REGISTRY_ID must be valid Sui addresses'
+      }, { status: 500 });
+    }
+
+    const normalizedMarketplaceId = normalizeSuiAddress(marketplaceId);
+    const normalizedRegistryId = normalizeSuiAddress(registryId);
+
+    const [marketplace, registry] = await Promise.allSettled([
       suiClient.getObject({
-        id: marketplaceId,
+        id: normalizedMarketplaceId,
         options: { showContent: true },
       }),
       suiClient.getObject({
-        id: registryId,
+        id: normalizedRegistryId,
         options: { showContent: true },
       }),
     ]);
 
+    // Handle results
+    const marketplaceData = marketplace.status === 'fulfilled' ? marketplace.value : null;
+    const registryData = registry.status === 'fulfilled' ? registry.value : null;
+
+    // Check for errors
+    const errors = [];
+    if (marketplace.status === 'rejected') {
+      errors.push(`Marketplace error: ${marketplace.reason}`);
+    }
+    if (registry.status === 'rejected') {
+      errors.push(`Registry error: ${registry.reason}`);
+    }
+
     return NextResponse.json({
       success: true,
-      marketplace,
-      registry,
+      marketplace: marketplaceData,
+      registry: registryData,
+      errors: errors.length > 0 ? errors : undefined,
+      configured: {
+        packageId: PACKAGE_ID,
+        marketplaceId: normalizedMarketplaceId,
+        registryId: normalizedRegistryId,
+      }
     });
   } catch (error) {
+    console.error('Error getting stats:', error);
     return NextResponse.json({
       success: false,
-      error: 'Failed to get stats',
+      error: 'Failed to get marketplace stats',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 });
+  }
+}
+
+// Function to get available credits in marketplace
+async function getAvailableCredits() {
+  try {
+    // For demonstration, return some mock data
+    // In a real implementation, you would query the marketplace smart contract
+    const mockCredits = [
+      {
+        objectId: '0x123...marketplace_credit_1',
+        content: {
+          type: `${PACKAGE_ID}::carbon_credit::CarbonCredit`,
+          fields: {
+            project_id: 'FOREST_001',
+            serial_number: 'FC-2024-001',
+            vintage_year: 2024,
+            quantity: 100,
+            methodology: 'VCS',
+            co2_data_hash: 'hash123'
+          }
+        },
+        price: 1000000000, // 1 SUI in MIST
+        seller: '0xseller123...',
+        projectInfo: {
+          name: 'Amazon Reforestation',
+          location: 'Brazil',
+          type: 'Forest Conservation'
+        }
+      }
+    ];
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        credits: mockCredits,
+        total: mockCredits.length
+      }
     });
+  } catch (error) {
+    console.error('Error fetching available credits:', error);
+    return NextResponse.json({
+      success: false,
+      error: 'Failed to fetch available credits',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 });
+  }
+}
+
+// Function to get minted credits by owner
+async function getMintedCredits(ownerAddress: string) {
+  try {
+    if (!isValidSuiAddress(ownerAddress)) {
+      return NextResponse.json({
+        success: false,
+        error: 'Invalid owner address format'
+      }, { status: 400 });
+    }
+
+    const normalizedAddress = normalizeSuiAddress(ownerAddress);
+
+    // Get all carbon credits owned by this address
+    const ownedCredits = await suiClient.getOwnedObjects({
+      owner: normalizedAddress,
+      filter: {
+        StructType: `${PACKAGE_ID}::carbon_credit::CarbonCredit`,
+      },
+      options: {
+        showType: true,
+        showContent: true,
+      },
+    });
+
+    return NextResponse.json({
+      success: true,
+      credits: ownedCredits.data || [],
+      total: ownedCredits.data?.length || 0,
+      owner: normalizedAddress,
+    });
+  } catch (error) {
+    console.error('Error fetching minted credits:', error);
+    return NextResponse.json({
+      success: false,
+      error: 'Failed to fetch minted credits',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 });
   }
 }
 
@@ -359,24 +633,61 @@ export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const userAddress = searchParams.get('address');
+    const action = searchParams.get('action');
+    const owner = searchParams.get('owner');
+
+    // Handle different GET actions
+    if (action === 'available_credits') {
+      return await getAvailableCredits();
+    }
+
+    if (action === 'minted_credits' && owner) {
+      return await getMintedCredits(owner);
+    }
 
     if (userAddress) {
-      // Get user's carbon credits
-      const objects = await suiClient.getOwnedObjects({
-        owner: userAddress,
-        filter: {
-          StructType: `${PACKAGE_ID}::carbon_credit::CarbonCredit`,
-        },
-        options: {
-          showType: true,
-          showContent: true,
-        },
-      });
+      // Validate and normalize the Sui address
+      if (!isValidSuiAddress(userAddress)) {
+        return NextResponse.json(
+          { 
+            success: false, 
+            error: 'Invalid Sui address format. Address must be a valid hexadecimal string starting with 0x' 
+          },
+          { status: 400 }
+        );
+      }
 
-      return NextResponse.json({
-        success: true,
-        credits: objects.data,
-      });
+      const normalizedAddress = normalizeSuiAddress(userAddress);
+
+      try {
+        // Get user's carbon credits
+        const objects = await suiClient.getOwnedObjects({
+          owner: normalizedAddress,
+          filter: {
+            StructType: `${PACKAGE_ID}::carbon_credit::CarbonCredit`,
+          },
+          options: {
+            showType: true,
+            showContent: true,
+          },
+        });
+
+        return NextResponse.json({
+          success: true,
+          credits: objects.data,
+          address: normalizedAddress,
+        });
+      } catch (suiError) {
+        console.error('Sui client error:', suiError);
+        return NextResponse.json(
+          { 
+            success: false, 
+            error: 'Failed to fetch user credits from blockchain',
+            details: suiError instanceof Error ? suiError.message : 'Unknown blockchain error'
+          },
+          { status: 500 }
+        );
+      }
     }
 
     // Return general stats
@@ -384,7 +695,11 @@ export async function GET(req: NextRequest) {
   } catch (error) {
     console.error('Smart contract GET error:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { 
+        success: false, 
+        error: 'Internal server error',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      },
       { status: 500 }
     );
   }
