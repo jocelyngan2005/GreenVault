@@ -10,7 +10,10 @@
   },
   "dependencies": {
     "@eslint/eslintrc": "^3.3.1",
+    "@mysten/seal": "^0.4.20",
     "@mysten/sui": "^1.37.1",
+    "@mysten/walrus": "^0.6.0",
+    "@mysten/walrus-wasm": "^0.1.0",
     "@oasisprotocol/sapphire-paratime": "^2.2.0",
     "@types/jsonwebtoken": "^9.0.10",
     "dotenv": "^17.2.1",

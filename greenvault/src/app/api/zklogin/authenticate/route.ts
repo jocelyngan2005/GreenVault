@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { suiZkLoginClient } from '@/lib/sui-zklogin';
 import { didManager } from '@/lib/did-manager';
 import { createOrUpdateZkLoginUser, findZkLoginUserBySub } from '@/lib/unifiedUserStore';
+import { WalrusUserManager, type WalrusUserData } from '@/lib/walrus/user-manager';
 import type { ZkLoginData } from '@/types/zklogin';
 
 export async function POST(request: NextRequest) {
@@ -122,15 +123,98 @@ export async function POST(request: NextRequest) {
     console.log('[auth] Wallet address:', zkLoginUserAddress);
     console.log('[auth] zkLogin authentication completed successfully!');
 
-    return NextResponse.json({
-      success: true,
-      data: zkLoginData,
-      didInfo: didInfo ? {
-        did: didInfo.did,
-        isNew: isNewDID,
-        document: didInfo.document
-      } : undefined,
-    });
+    // Store user data in Walrus after successful authentication
+    try {
+      console.log('[auth] Starting Walrus integration for user:', decodedJwt.sub);
+      
+      const walrusManager = WalrusUserManager.getInstance();
+      await walrusManager.initialize();
+      
+      // Prepare user data for Walrus storage
+      const walrusUserData: WalrusUserData = {
+        zkLoginData,
+        didData: didInfo ? {
+          did: didInfo.did,
+          document: didInfo.document,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        } : undefined,
+        userSalt,
+        metadata: {
+          userId: decodedJwt.sub,
+          email: decodedJwt.email,
+          name: decodedJwt.name,
+          lastLogin: new Date().toISOString(),
+          createdAt: new Date().toISOString(),
+          version: '1.0.0'
+        },
+        // Set default user preferences (can be updated later)
+        userRole: undefined, // Will be set in role selection
+        theme: 'light',
+        language: 'en'
+      };
+
+      // Use the user's salt as the encryption key (you might want to derive a separate key)
+      const userEncryptionKey = userSalt;
+      
+      // Store the data in Walrus
+      const walrusBlobId = await walrusManager.storeUserData(walrusUserData, userEncryptionKey);
+      
+      console.log('[auth] User data successfully stored in Walrus:', {
+        userId: decodedJwt.sub,
+        blobId: walrusBlobId,
+        hasZkLogin: !!walrusUserData.zkLoginData,
+        hasDID: !!walrusUserData.didData
+      });
+
+      // Retrieve the data from Walrus (TESTING)
+      // const retrievedData = await walrusManager.retrieveUserData('109462204890836173254', '97cd47294ae3981370c033848865a156');
+      // console.log('[auth] User data successfully retrieved from Walrus:', {
+      //   userId: decodedJwt.sub,
+      //   blobId: walrusBlobId,
+      //   zkLoginData: retrievedData?.zkLoginData,
+      //   didData: retrievedData?.didData
+      // });
+
+      // Return the success response with Walrus information
+      return NextResponse.json({
+        success: true,
+        data: zkLoginData,
+        didInfo: didInfo ? {
+          did: didInfo.did,
+          isNew: isNewDID,
+          document: didInfo.document
+        } : undefined,
+        walrusInfo: {
+          blobId: walrusBlobId,
+          stored: true,
+          timestamp: new Date().toISOString()
+          // zkLoginData: retrievedData?.zkLoginData,
+          // didData: retrievedData?.didData
+        }
+      });
+      
+    } catch (walrusError) {
+      console.error('[walrus] ⚠️ Failed to store user data in Walrus:', walrusError);
+      
+      // Continue without Walrus storage - don't fail the authentication
+      console.log('[walrus] Continuing authentication without Walrus storage');
+      
+      return NextResponse.json({
+        success: true,
+        data: zkLoginData,
+        didInfo: didInfo ? {
+          did: didInfo.did,
+          isNew: isNewDID,
+          document: didInfo.document
+        } : undefined,
+        walrusInfo: {
+          error: walrusError instanceof Error ? walrusError.message : 'Unknown error',
+          stored: false,
+          timestamp: new Date().toISOString()
+        }
+      });
+    }
   } catch (error) {
     console.error('[auth] Auth callback error:', error);
     return NextResponse.json(
