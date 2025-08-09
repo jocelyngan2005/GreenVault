@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { suiZkLoginClient } from '@/lib/sui-zklogin';
-import { didManager } from '@/lib/did-manager';
-import { createOrUpdateZkLoginUser, findZkLoginUserBySub } from '@/lib/unifiedUserStore';
+import { suiZkLoginClient } from '@/lib/zklogin/sui-zklogin';
+import { didManager } from '@/lib/did/did-manager';
+import { createOrUpdateZkLoginUser, findZkLoginUserBySub } from '@/lib/zklogin/unifiedUserStore';
 import { WalrusUserManager, type WalrusUserData } from '@/lib/walrus/user-manager';
 import type { ZkLoginData } from '@/types/zklogin';
+import { initializeUserVaultSafely, generateVaultKey } from '@/lib/vault/vault-auth';
+
 
 export async function POST(request: NextRequest) {
   try {
@@ -167,16 +169,10 @@ export async function POST(request: NextRequest) {
         hasDID: !!walrusUserData.didData
       });
 
-      // Retrieve the data from Walrus (TESTING)
-      // const retrievedData = await walrusManager.retrieveUserData('109462204890836173254', '97cd47294ae3981370c033848865a156');
-      // console.log('[auth] User data successfully retrieved from Walrus:', {
-      //   userId: decodedJwt.sub,
-      //   blobId: walrusBlobId,
-      //   zkLoginData: retrievedData?.zkLoginData,
-      //   didData: retrievedData?.didData
-      // });
+      // Vault will be checked/created on the frontend
+      console.log('[auth] Vault will be checked on frontend for user:', decodedJwt.sub);
 
-      // Return the success response with Walrus information
+      // Return success response with all information
       return NextResponse.json({
         success: true,
         data: zkLoginData,
@@ -186,20 +182,18 @@ export async function POST(request: NextRequest) {
           document: didInfo.document
         } : undefined,
         walrusInfo: {
-          blobId: walrusBlobId,
           stored: true,
+          blobId: walrusBlobId,
           timestamp: new Date().toISOString()
-          // zkLoginData: retrievedData?.zkLoginData,
-          // didData: retrievedData?.didData
         }
-      });
+      });      
       
     } catch (walrusError) {
-      console.error('[walrus] ⚠️ Failed to store user data in Walrus:', walrusError);
+      console.error('[auth] Failed to store user data in Walrus:', walrusError);
       
       // Continue without Walrus storage - don't fail the authentication
-      console.log('[walrus] Continuing authentication without Walrus storage');
-      
+      console.log('[auth] Continuing authentication without Walrus storage');
+
       return NextResponse.json({
         success: true,
         data: zkLoginData,

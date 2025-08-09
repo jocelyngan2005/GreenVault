@@ -1,5 +1,6 @@
 import { sealDataAESGCM, unsealDataAESGCM } from './crypto';
 import { serverAccountManager } from './server-manager';
+import { LocalStorageFallback } from './local-storage-fallback';
 import type { 
   AccountData, 
   SealedAccountData, 
@@ -27,7 +28,7 @@ async function loadSDKs() {
     isWalrusSDKAvailable = true;
     console.log('[walrus-manager] Walrus SDK loaded successfully');
   } catch (error) {
-    console.log('[walrus-manager] Walrus SDK not available:', error);
+    console.log('[walrus-manager] Walrus SDK not available');
   }
 
   // Initialize Sui SDK
@@ -385,84 +386,128 @@ export class EnhancedWalrusAccountManager {
 
   // Vault management methods
 
- /**
-   * Store raw string data in Walrus (for vault and other non-account data)
+  /**
+   * Store raw string data in Walrus (for vault and other non-account data) with retry logic
    */
-  async storeString(data: string): Promise<string> {
+  async storeString(data: string, maxRetries: number = 1): Promise<string> {
     console.log('[walrus-manager] Storing string data in Walrus');
     await this.initialize();
 
-    try {
-      // Try Walrus SDK first, then HTTP API fallback
-      let storeResult: any;
-      let blobId: string;
-      
-      if (this.walrusClient && this.config.preferOfficialSDK) {
-        try {
-          console.log('[walrus-manager] Storing string with Walrus SDK...');
-          storeResult = await this.storeWithWalrusSDK(data);
-          blobId = storeResult.newlyCreated?.blobObject?.blobId || storeResult.alreadyCertified?.blobId;
-          console.log('[walrus-manager] Walrus SDK store successful, blobId:', blobId);
-        } catch (sdkError) {
-          console.warn('[walrus-manager] Walrus SDK failed, falling back to HTTP API:', sdkError);
+    let lastError: Error | null = null;
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        console.log(`[walrus-manager] Attempt ${attempt}/${maxRetries} to store string`);
+        
+        // Try Walrus SDK first, then HTTP API fallback
+        let storeResult: any;
+        let blobId: string;
+        
+        if (this.walrusClient && this.config.preferOfficialSDK) {
+          try {
+            console.log('[walrus-manager] Storing string with Walrus SDK...');
+            storeResult = await this.storeWithWalrusSDK(data);
+            blobId = storeResult.newlyCreated?.blobObject?.blobId || storeResult.alreadyCertified?.blobId;
+            console.log('[walrus-manager] Walrus SDK store successful, blobId:', blobId);
+          } catch (sdkError) {
+            console.warn('[walrus-manager] Walrus SDK failed, falling back to HTTP API:', sdkError);
+            storeResult = await this.storeWithHTTPAPI(data);
+            blobId = storeResult.newlyCreated?.blobObject?.blobId || storeResult.alreadyCertified?.blobId;
+            console.log('[walrus-manager] HTTP API store successful, blobId:', blobId);
+          }
+        } else {
+          console.log('[walrus-manager] Storing string with HTTP API...');
           storeResult = await this.storeWithHTTPAPI(data);
           blobId = storeResult.newlyCreated?.blobObject?.blobId || storeResult.alreadyCertified?.blobId;
           console.log('[walrus-manager] HTTP API store successful, blobId:', blobId);
         }
-      } else {
-        console.log('[walrus-manager] Storing string with HTTP API...');
-        storeResult = await this.storeWithHTTPAPI(data);
-        blobId = storeResult.newlyCreated?.blobObject?.blobId || storeResult.alreadyCertified?.blobId;
-        console.log('[walrus-manager] HTTP API store successful, blobId:', blobId);
+
+        if (!blobId) {
+          throw new Error('Failed to get blob ID from Walrus response');
+        }
+
+        console.log(`[walrus-manager] String stored successfully: ${blobId} (${data.length} chars)`);
+        return blobId;
+
+      } catch (error) {
+        lastError = error as Error;
+        console.error(`[walrus-manager] Attempt ${attempt}/${maxRetries} failed:`, error);
+        
+        if (attempt < maxRetries) {
+          // Reduced wait time for faster fallback
+          const waitTime = 1000; // Just 1 second
+          console.log(`[walrus-manager] Waiting ${waitTime}ms before retry...`);
+          await new Promise(resolve => setTimeout(resolve, waitTime));
+        }
       }
-
-      if (!blobId) {
-        throw new Error('Failed to get blob ID from Walrus response');
-      }
-
-      console.log(`[walrus-manager] String stored successfully: ${blobId} (${data.length} chars)`);
-      return blobId;
-
-    } catch (error) {
-      console.error('[walrus-manager] Failed to store string:', error);
-      throw error;
     }
-  }
 
-  /**
-   * Retrieve raw string data from Walrus (for vault and other non-account data)
+    console.error('[walrus-manager] All store attempts failed, switching to local fallback');
+    
+    // Try local fallback as last resort
+    try {
+      return await this.useServerFallback('store', data);
+    } catch (fallbackError) {
+      console.error('[walrus-manager] Local fallback also failed:', fallbackError);
+      throw new Error(`Failed to store data after ${maxRetries} attempts. Last error: ${lastError?.message}`);
+    }
+  }  /**
+   * Retrieve raw string data from Walrus (for vault and other non-account data) with retry logic
    */
-  async retrieveString(blobId: string): Promise<string> {
+  async retrieveString(blobId: string, maxRetries: number = 1): Promise<string> {
     console.log('[walrus-manager] Retrieving string data from Walrus:', blobId);
     await this.initialize();
 
-    try {
-      let blobData: string;
-      
-      if (this.walrusClient && this.config.preferOfficialSDK) {
-        try {
-          console.log('[walrus-manager] Retrieving string with Walrus SDK...');
-          blobData = await this.retrieveWithWalrusSDK(blobId);
-          console.log('[walrus-manager] Walrus SDK retrieve successful');
-        } catch (sdkError) {
-          console.warn('[walrus-manager] Walrus SDK failed, falling back to HTTP API:', sdkError);
+    let lastError: Error | null = null;
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        console.log(`[walrus-manager] Attempt ${attempt}/${maxRetries} to retrieve string`);
+        
+        let blobData: string;
+        
+        if (this.walrusClient && this.config.preferOfficialSDK) {
+          try {
+            console.log('[walrus-manager] Retrieving string with Walrus SDK...');
+            blobData = await this.retrieveWithWalrusSDK(blobId);
+            console.log('[walrus-manager] Walrus SDK retrieve successful');
+          } catch (sdkError) {
+            console.warn('[walrus-manager] Walrus SDK failed, falling back to HTTP API:', sdkError);
+            const response = await this.performHTTPRetrieve(blobId);
+            blobData = response.data;
+            console.log('[walrus-manager] HTTP API retrieve successful');
+          }
+        } else {
+          console.log('[walrus-manager] Retrieving string with HTTP API...');
           const response = await this.performHTTPRetrieve(blobId);
           blobData = response.data;
           console.log('[walrus-manager] HTTP API retrieve successful');
         }
-      } else {
-        console.log('[walrus-manager] Retrieving string with HTTP API...');
-        const response = await this.performHTTPRetrieve(blobId);
-        blobData = response.data;
-        console.log('[walrus-manager] HTTP API retrieve successful');
+
+        console.log(`[walrus-manager] String retrieved successfully: ${blobId} (${blobData.length} chars)`);
+        return blobData;
+
+      } catch (error) {
+        lastError = error as Error;
+        console.error(`[walrus-manager] Attempt ${attempt}/${maxRetries} failed:`, error);
+        
+        if (attempt < maxRetries) {
+          // Reduced wait time for faster fallback
+          const waitTime = 1000; // Just 1 second
+          console.log(`[walrus-manager] Waiting ${waitTime}ms before retry...`);
+          await new Promise(resolve => setTimeout(resolve, waitTime));
+        }
       }
+    }
 
-      console.log(`[walrus-manager] String retrieved successfully: ${blobId} (${blobData.length} chars)`);
-      return blobData;
-
-    } catch (error) {
-      console.error('[walrus-manager] Failed to retrieve string:', error);
-      throw error;
+    console.error('[walrus-manager] All retrieve attempts failed, trying local fallback');
+    
+    // Try local fallback as last resort
+    try {
+      return await this.useServerFallback('retrieve', undefined, blobId);
+    } catch (fallbackError) {
+      console.error('[walrus-manager] Local fallback also failed:', fallbackError);
+      throw new Error(`Failed to retrieve data after ${maxRetries} attempts. Last error: ${lastError?.message}`);
     }
   }
 
@@ -696,8 +741,9 @@ export class EnhancedWalrusAccountManager {
    */
   private async performHTTPStore(data: string): Promise<WalrusStoreResponse> {
     try {
+      // Reduced timeout to 10 seconds for faster fallback
       const timeoutPromise = new Promise<Response>((_, reject) => {
-        setTimeout(() => reject(new Error('Walrus upload timeout')), 30000);
+        setTimeout(() => reject(new Error('Walrus upload timeout')), 10000);
       });
       
       const fetchPromise = fetch(`${this.config.publisherUrl}/v1/store?epochs=${this.config.epochs}`, {
@@ -706,14 +752,13 @@ export class EnhancedWalrusAccountManager {
         body: data,
       });
 
-      console.log('[walrus-manager] Starting HTTP upload with 30s timeout...');
+      console.log('[walrus-manager] Starting HTTP upload with 10s timeout...');
       const response = await Promise.race([fetchPromise, timeoutPromise]);
       console.log('[walrus-manager] HTTP Response received, status:', response.status);
 
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error('[walrus-manager] HTTP store failed:', response.status, errorText);
-        throw new Error(`Walrus store failed: ${response.status} ${errorText}`);
+        console.error('[walrus-manager] HTTP store failed');
+        throw new Error(`Walrus store failed: ${response.status} ${response.statusText}`);
       }
 
       const result: WalrusStoreResponse = await response.json();
@@ -722,7 +767,7 @@ export class EnhancedWalrusAccountManager {
       return result;
 
     } catch (error) {
-      console.error('[walrus-manager] HTTP store failed:', error);
+      console.error('[walrus-manager] HTTP store failed');
       throw error;
     }
   }
@@ -732,15 +777,16 @@ export class EnhancedWalrusAccountManager {
    */
   private async performHTTPRetrieve(blobId: string): Promise<WalrusReadResponse> {
     try {
+      // Reduced timeout to 10 seconds for faster fallback
       const timeoutPromise = new Promise<Response>((_, reject) => {
-        setTimeout(() => reject(new Error('Walrus download timeout')), 30000);
+        setTimeout(() => reject(new Error('Walrus download timeout')), 10000);
       });
       
       const fetchPromise = fetch(`${this.config.aggregatorUrl}/v1/${blobId}`);
       const response = await Promise.race([fetchPromise, timeoutPromise]);
       
       if (!response.ok) {
-        console.error('[walrus-manager] HTTP retrieve failed:', response.status, response.statusText);
+        console.error('[walrus-manager] HTTP retrieve failed:', response.status);
         throw new Error(`Walrus retrieve failed: ${response.status} ${response.statusText}`);
       }
       
@@ -779,6 +825,165 @@ export class EnhancedWalrusAccountManager {
     // For now, treat updates as new stores (Walrus is immutable)
     // In production, you might want to track blob history
     return await this.storeAccount(updatedAccountData, userKey);
+  }
+
+  /**
+   * Local storage fallback for when Walrus is unavailable
+   */
+  private async useServerFallback(operation: 'store' | 'retrieve', data?: string, blobId?: string): Promise<string> {
+    console.log('[walrus-manager] Using local storage fallback for:', operation);
+    
+    if (operation === 'store' && data) {
+      try {
+        // Use the enhanced LocalStorageFallback utility
+        // We need a user key for encryption - use a derived key from the data itself for now
+        const fallbackUserKey = await this.deriveKeyFromData(data);
+        const fallbackId = await LocalStorageFallback.store(data, fallbackUserKey, 'vault');
+        
+        console.log('[walrus-manager] Data stored in encrypted localStorage fallback:', fallbackId);
+        return fallbackId;
+        
+      } catch (localStorageError) {
+        console.error('[walrus-manager] localStorage fallback failed');
+        
+        // Fallback to file storage
+        const fallbackId = `vault-${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        
+        try {
+          // Server-side file storage
+          if (typeof window === 'undefined') {
+            const fs = require('fs');
+            const path = require('path');
+            const FALLBACK_STORAGE_DIR = path.join(process.cwd(), '.walrus-data', 'secrets');
+            
+            if (!fs.existsSync(FALLBACK_STORAGE_DIR)) {
+              fs.mkdirSync(FALLBACK_STORAGE_DIR, { recursive: true });
+            }
+            
+            const filePath = path.join(FALLBACK_STORAGE_DIR, `${fallbackId}.enc`);
+            fs.writeFileSync(filePath, data);
+            console.log('[walrus-manager] Data stored in server file fallback:', fallbackId);
+            return fallbackId;
+          }
+          
+          // Client-side localStorage fallback
+          if (typeof window !== 'undefined' && window.localStorage) {
+            localStorage.setItem(fallbackId, data);
+            console.log('[walrus-manager] Data stored in simple localStorage fallback:', fallbackId);
+            return fallbackId;
+          }
+          
+          // Last resort: server memory
+          if (typeof globalThis !== 'undefined') {
+            if (!(globalThis as any).walrusFallbackStorage) {
+              (globalThis as any).walrusFallbackStorage = new Map();
+            }
+            (globalThis as any).walrusFallbackStorage.set(fallbackId, data);
+            console.log('[walrus-manager] Data stored in server memory fallback:', fallbackId);
+            return fallbackId;
+          }
+        } catch (fileError) {
+          console.error('[walrus-manager] File storage fallback failed');
+        }
+        
+        throw new Error('All fallback storage methods failed');
+      }
+      
+    } else if (operation === 'retrieve' && blobId) {
+      let lastError: Error | null = null;
+      
+      // Try enhanced LocalStorageFallback first (support both old and new prefixes)
+      if (blobId.includes('vault-')) {
+        try {
+          const fallbackUserKey = await this.deriveKeyFromId(blobId);
+          const data = await LocalStorageFallback.retrieve(blobId, fallbackUserKey);
+          console.log('[walrus-manager] Data retrieved from encrypted localStorage fallback');
+          return data;
+        } catch (localStorageError) {
+          lastError = localStorageError as Error;
+          console.warn('[walrus-manager] Encrypted localStorage fallback failed');
+        }
+      }
+      
+      // Try server file storage
+      try {
+        if (typeof window === 'undefined') {
+          const fs = require('fs');
+          const path = require('path');
+          const FALLBACK_STORAGE_DIR = path.join(process.cwd(), '.walrus-data', 'secrets');
+          const filePath = path.join(FALLBACK_STORAGE_DIR, `${blobId}.enc`);
+          
+          if (fs.existsSync(filePath)) {
+            const data = fs.readFileSync(filePath, 'utf-8');
+            console.log('[walrus-manager] Data retrieved from server file fallback');
+            return data;
+          }
+        }
+      } catch (fileError) {
+        lastError = fileError as Error;
+        console.warn('[walrus-manager] Server file fallback failed');
+      }
+      
+      // Try simple localStorage fallback
+      try {
+        if (typeof window !== 'undefined' && window.localStorage) {
+          const data = localStorage.getItem(blobId);
+          if (data) {
+            console.log('[walrus-manager] Data retrieved from simple localStorage fallback');
+            return data;
+          }
+        }
+      } catch (simpleStorageError) {
+        lastError = simpleStorageError as Error;
+        console.warn('[walrus-manager] Simple localStorage fallback failed');
+      }
+      
+      // Try server memory fallback
+      try {
+        if (typeof globalThis !== 'undefined' && (globalThis as any).walrusFallbackStorage) {
+          const data = (globalThis as any).walrusFallbackStorage.get(blobId);
+          if (data) {
+            console.log('[walrus-manager] Data retrieved from server memory fallback');
+            return data;
+          }
+        }
+      } catch (memoryStorageError) {
+        lastError = memoryStorageError as Error;
+        console.warn('[walrus-manager] Server memory fallback failed');
+      }
+      
+      console.error('[walrus-manager] All fallback retrieve methods failed');
+      throw new Error(`Failed to retrieve fallback data: ${lastError?.message || 'All methods failed'}`);
+    }
+    
+    throw new Error(`Invalid fallback operation: ${operation}`);
+  }
+  
+  /**
+   * Derive a key from data for fallback encryption
+   */
+  private async deriveKeyFromData(data: string): Promise<string> {
+    // Create a simple deterministic key from data hash
+    const encoder = new TextEncoder();
+    const dataBuffer = encoder.encode(data.substring(0, 100)); // Use first 100 chars
+    const hashBuffer = await crypto.subtle.digest('SHA-256', dataBuffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('').substring(0, 32);
+  }
+  
+  /**
+   * Derive a key from fallback ID for retrieval
+   */
+  private async deriveKeyFromId(fallbackId: string): Promise<string> {
+    // Extract timestamp and random part to recreate key
+    const parts = fallbackId.split('_');
+    if (parts.length >= 4) {
+      const seed = parts[2] + parts[3]; // timestamp + random
+      return this.deriveKeyFromData(seed);
+    }
+    
+    // Fallback key
+    return 'fallback_default_key_' + fallbackId.substring(0, 16);
   }
 
   /**

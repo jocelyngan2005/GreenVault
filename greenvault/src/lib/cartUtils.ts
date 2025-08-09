@@ -13,6 +13,8 @@ export interface CartItem {
   quantity: number;
   totalPrice: number;
   image?: string;
+  region?: string;
+  expiryDate?: string;
 }
 
 export const cartUtils = {

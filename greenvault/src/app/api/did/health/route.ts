@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { findUserByEmail } from '@/lib/unifiedUserStore';
-import { getUserDIDStatus } from '@/lib/didUtils';
+import { findUserByEmail } from '@/lib/zklogin/unifiedUserStore';
+import { getUserDIDStatus } from '@/lib/did/didUtils';
 import { verifyToken } from '@/lib/auth';
 
 export async function GET(request: NextRequest) {
@@ -112,7 +112,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Force DID creation/repair
-    const { ensureUserHasDID } = await import('@/lib/didUtils');
+    const { ensureUserHasDID } = await import('@/lib/did/didUtils');
     
     try {
       const didInfo = await ensureUserHasDID(user);

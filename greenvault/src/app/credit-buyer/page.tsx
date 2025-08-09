@@ -42,24 +42,7 @@ export default function CreditBuyerDashboard() {
     deadline: '2025-08-31'
   });
 
-  const [recentPurchases] = useState<Purchase[]>([
-    {
-      id: '1',
-      projectName: 'Amazon Rainforest Conservation',
-      amount: 1.5,
-      price: 25,
-      date: '2025-08-01',
-      status: 'completed'
-    },
-    {
-      id: '2',
-      projectName: 'Solar Farm Initiative',
-      amount: 0.8,
-      price: 18,
-      date: '2025-07-28',
-      status: 'completed'
-    }
-  ]);
+  const [recentPurchases, setRecentPurchases] = useState<Purchase[]>([]);
 
   const [recommendedCredits] = useState<CarbonCredit[]>([
     {
@@ -83,6 +66,36 @@ export default function CreditBuyerDashboard() {
       description: 'Clean wind energy for rural communities'
     }
   ]);
+
+
+  const [ownedNFTs, setOwnedNFTs] = useState<OwnedNFT[]>([]);
+  // Load ownedNFTs and recentPurchases from localStorage (simulate demo)
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const storedNFTs = localStorage.getItem('purchasedNFTs');
+      if (storedNFTs) {
+        try {
+          setOwnedNFTs(JSON.parse(storedNFTs));
+        } catch {
+          setOwnedNFTs([]);
+        }
+      } else {
+        setOwnedNFTs([]);
+      }
+
+      const storedPurchases = localStorage.getItem('recentPurchases');
+      if (storedPurchases) {
+        try {
+          setRecentPurchases(JSON.parse(storedPurchases));
+        } catch {
+          setRecentPurchases([]);
+        }
+      } else {
+        setRecentPurchases([]);
+      }
+    }
+  }, []);
+
 
   const [showGoalModal, setShowGoalModal] = useState(false);
   const [newGoalTarget, setNewGoalTarget] = useState(5);

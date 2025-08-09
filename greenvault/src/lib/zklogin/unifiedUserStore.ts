@@ -337,4 +337,4 @@ export function getUserStats() {
 }
 
 // Export legacy functions for backward compatibility
-export * from './serverUserStore';
+export * from '../serverUserStore';

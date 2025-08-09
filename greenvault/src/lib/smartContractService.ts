@@ -251,6 +251,40 @@ class SmartContractService {
     }
   }
 
+  /**
+   * Get registered projects for a specific user/project owner
+   */
+  async getRegisteredProjects(ownerAddress: string): Promise<SmartContractResponse> {
+    if (!ownerAddress || !isValidSuiAddress(ownerAddress)) {
+      return {
+        success: false,
+        error: 'Invalid owner address. Please provide a valid Sui address starting with 0x',
+      };
+    }
+
+    try {
+      const response = await fetch(`${this.baseUrl}?action=registered_projects&owner=${encodeURIComponent(ownerAddress)}`);
+      const result = await response.json();
+
+      if (!response.ok) {
+        return {
+          success: false,
+          error: result.error || 'Failed to fetch registered projects',
+        };
+      }
+
+      return {
+        success: true,
+        data: result,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Network error occurred',
+      };
+    }
+  }
+
   // === Carbon Credit Operations ===
 
   /**
