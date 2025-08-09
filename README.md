@@ -40,6 +40,11 @@ GreenVault connects local project owners (who supply carbon offset projects) wit
 - Buy NFTs; the CO₂ amount is marked as offset in your profile.
 - Optionally, use the AI assistant to automate monthly offsetting and get recommendations.
 
+#### Summary
+- Local project owners supply and register offset projects, earning recognition and revenue, or use the Vault for secure management of other secrets.
+- Buyers (companies/individuals) offset their own emissions by purchasing verified credits.
+- GreenVault provides the secure, decentralized infrastructure to connect, verify, and transact between these groups, while also serving as a general-purpose vault for secret account management.
+
 ## 👩‍💻 Developer Roles 
 
 **June** — Blockchain & Smart Contracts Lead
@@ -58,11 +63,6 @@ GreenVault connects local project owners (who supply carbon offset projects) wit
    - Design and develop PWA frontend (Login, Vault, Carbon dashboard)
    - Implement AI Agent: auto-buy carbon credits, chat-based assistant
    - Create pitch deck, handle demo UI
-
-#### Summary
-- Local project owners supply and register offset projects, earning recognition and revenue, or use the Vault for secure management of other secrets.
-- Buyers (companies/individuals) offset their own emissions by purchasing verified credits.
-- GreenVault provides the secure, decentralized infrastructure to connect, verify, and transact between these groups, while also serving as a general-purpose vault for secret account management.
 
 ## Features
 
