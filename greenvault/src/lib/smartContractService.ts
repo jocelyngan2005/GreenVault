@@ -637,4 +637,6 @@ class SmartContractService {
 export const smartContractService = new SmartContractService();
 
 // Export the class for custom instances
+
 export default SmartContractService;
+

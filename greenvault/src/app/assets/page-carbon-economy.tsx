@@ -72,113 +72,53 @@ export default function CarbonCreditAssetsPage() {
     }
   });
 
-  // Project Owner - Carbon Credit NFTs representing real projects they've created
-  const [ownedProjectNFTs] = useState<CarbonCreditNFT[]>([
-    {
-      id: '1',
-      projectName: 'Amazon Rainforest Conservation',
-      projectId: 'AMZN-2024-001',
-      creditType: 'forestConservation',
-      realWorldCO2Impact: 1500,     // This project offsets 1,500 tons CO2 annually
-      stakingValue: 2500,           // 2,500 carbon credits staked by all investors
-      ownershipPercentage: 100,     // Project owner has 100% ownership
-      acquisitionCost: 0,           // No cost for project creator
-      currentValue: 2800,           // Current value based on performance
-      annualReturns: 350,           // Earning 350 carbon credits annually
-      location: 'Brazil',
-      projectType: 'Forest Conservation',
-      verificationStandard: 'VCS v4.0',
-      stakingDate: '2024-01-10',
-      status: 'active',
-      projectedImpact: 1500,
-      actualImpact: 1680,           // Exceeding projections
-      performanceRatio: 1.12,
-      metadata: {
-        description: 'Supporting indigenous communities in preserving 10,000 hectares of rainforest',
-        communityBenefit: ['Indigenous employment', 'Traditional knowledge preservation', 'Sustainable livelihoods'],
-        monitoringData: 'Satellite monitoring + ground verification'
-      }
-    },
-    {
-      id: '2',
-      projectName: 'Solar Micro-Grid Initiative',
-      projectId: 'SOLR-2024-002',
-      creditType: 'renewableEnergy',
-      realWorldCO2Impact: 800,
-      stakingValue: 1200,
-      ownershipPercentage: 100,
-      acquisitionCost: 0,
-      currentValue: 1350,
-      annualReturns: 180,
-      location: 'Kenya',
-      projectType: 'Renewable Energy',
-      verificationStandard: 'Gold Standard',
-      stakingDate: '2024-02-15',
-      status: 'active',
-      projectedImpact: 800,
-      actualImpact: 750,
-      performanceRatio: 0.94,
-      metadata: {
-        description: 'Distributed solar energy system serving rural communities',
-        communityBenefit: ['Clean energy access', 'Reduced energy costs', 'Local technician training'],
-        monitoringData: 'Smart meter data + community surveys'
-      }
-    }
-  ]);
 
-  // Credit Buyer - Carbon Credit NFTs representing investments in projects
-  const [investedProjectNFTs] = useState<CarbonCreditNFT[]>([
-    {
-      id: '3',
-      projectName: 'Mangrove Restoration Project',
-      projectId: 'MNGR-2024-003',
-      creditType: 'ecosystemRestoration',
-      realWorldCO2Impact: 200,      // Their share represents 200 tons CO2 annually
-      stakingValue: 150,            // Invested 150 carbon credits
-      ownershipPercentage: 12.5,    // 12.5% ownership in the project
-      acquisitionCost: 150,
-      currentValue: 175,
-      annualReturns: 22,
-      location: 'Philippines',
-      projectType: 'Ecosystem Restoration',
-      verificationStandard: 'Plan Vivo',
-      stakingDate: '2024-03-20',
-      status: 'active',
-      projectedImpact: 200,
-      actualImpact: 230,
-      performanceRatio: 1.15,
-      metadata: {
-        description: 'Coastal mangrove restoration with community participation',
-        communityBenefit: ['Coastal protection', 'Fisheries enhancement', 'Eco-tourism'],
-        monitoringData: 'Drone surveys + biodiversity assessments'
+  // Dynamically load project NFTs from localStorage (dashboard logic)
+  const [ownedProjectNFTs, setOwnedProjectNFTs] = useState<CarbonCreditNFT[]>([]);
+  const [investedProjectNFTs, setInvestedProjectNFTs] = useState<CarbonCreditNFT[]>([]);
+
+  useEffect(() => {
+    // Load owned projects for project-owner
+    if (typeof window !== 'undefined') {
+      const storedProjects = localStorage.getItem('projects');
+      if (storedProjects) {
+        try {
+          const parsed = JSON.parse(storedProjects);
+          // Map dashboard project structure to CarbonCreditNFT structure if needed
+          setOwnedProjectNFTs(parsed.map((p: any) => ({
+            id: p.id,
+            projectName: p.name,
+            projectId: p.id,
+            creditType: p.type || 'forestConservation',
+            realWorldCO2Impact: p.co2Amount,
+            stakingValue: p.stakingValue || 0,
+            ownershipPercentage: 100,
+            acquisitionCost: 0,
+            currentValue: p.currentValue || p.co2Amount * 2 || 0,
+            annualReturns: p.annualReturns || Math.floor(p.co2Amount / 10),
+            location: p.location,
+            projectType: p.type,
+            verificationStandard: p.verificationStandard || 'VCS v4.0',
+            stakingDate: p.createdDate || '',
+            status: p.status === 'listed' ? 'active' : (p.status || 'active'),
+            projectedImpact: p.co2Amount,
+            actualImpact: p.actualImpact || p.co2Amount,
+            performanceRatio: p.performanceRatio || 1,
+            metadata: {
+              description: p.description || '',
+              communityBenefit: p.communityBenefit || [],
+              monitoringData: p.monitoringData || ''
+            }
+          })));
+        } catch (e) {
+          setOwnedProjectNFTs([]);
+        }
       }
-    },
-    {
-      id: '4',
-      projectName: 'Clean Cooking Stoves Distribution',
-      projectId: 'COOK-2024-004',
-      creditType: 'cleanCooking',
-      realWorldCO2Impact: 50,
-      stakingValue: 80,
-      ownershipPercentage: 8,
-      acquisitionCost: 80,
-      currentValue: 85,
-      annualReturns: 12,
-      location: 'Uganda',
-      projectType: 'Clean Cooking',
-      verificationStandard: 'Gold Standard',
-      stakingDate: '2024-04-10',
-      status: 'active',
-      projectedImpact: 50,
-      actualImpact: 55,
-      performanceRatio: 1.10,
-      metadata: {
-        description: 'Efficient cookstoves reducing deforestation and indoor air pollution',
-        communityBenefit: ['Health improvements', 'Time savings', 'Forest preservation'],
-        monitoringData: 'Usage tracking + health impact studies'
-      }
+      // For credit-buyer, you may want to load from a different key or API
+      // For demo, keep static or empty
+      setInvestedProjectNFTs([]);
     }
-  ]);
+  }, []);
 
   // Transaction history using carbon credits
   const [transactions] = useState<CarbonCreditTransaction[]>([
@@ -230,25 +170,26 @@ export default function CarbonCreditAssetsPage() {
     return null;
   }
 
-  // Calculate portfolio metrics
+
+  // Calculate portfolio metrics (matches dashboard logic)
   const getTotalCO2Impact = () => {
     const nfts = userRole === 'project-owner' ? ownedProjectNFTs : investedProjectNFTs;
-    return nfts.reduce((sum, nft) => sum + nft.realWorldCO2Impact, 0);
+    return Array.isArray(nfts) ? nfts.reduce((sum, nft) => sum + (nft.realWorldCO2Impact || 0), 0) : 0;
   };
 
   const getTotalInvestment = () => {
     const nfts = userRole === 'project-owner' ? ownedProjectNFTs : investedProjectNFTs;
-    return nfts.reduce((sum, nft) => sum + nft.acquisitionCost, 0);
+    return Array.isArray(nfts) ? nfts.reduce((sum, nft) => sum + (nft.acquisitionCost || 0), 0) : 0;
   };
 
   const getCurrentPortfolioValue = () => {
     const nfts = userRole === 'project-owner' ? ownedProjectNFTs : investedProjectNFTs;
-    return nfts.reduce((sum, nft) => sum + nft.currentValue, 0);
+    return Array.isArray(nfts) ? nfts.reduce((sum, nft) => sum + (nft.currentValue || 0), 0) : 0;
   };
 
   const getAnnualCreditReturns = () => {
     const nfts = userRole === 'project-owner' ? ownedProjectNFTs : investedProjectNFTs;
-    return nfts.reduce((sum, nft) => sum + nft.annualReturns, 0);
+    return Array.isArray(nfts) ? nfts.reduce((sum, nft) => sum + (nft.annualReturns || 0), 0) : 0;
   };
 
   const handleRetireCredits = (nftId: string, amount: number) => {
@@ -360,90 +301,96 @@ export default function CarbonCreditAssetsPage() {
         {/* Assets Tab */}
         {activeTab === 'assets' && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {(userRole === 'project-owner' ? ownedProjectNFTs : investedProjectNFTs).map((nft) => (
-              <div key={nft.id} className="border border-black p-6">
-                <div className="flex justify-between items-start mb-4">
-                  <div>
-                    <h3 className="font-bold text-lg">{nft.projectName}</h3>
-                    <p className="text-sm text-gray-600">{nft.location} • {nft.projectType}</p>
-                  </div>
-                  <span className={`text-xs px-2 py-1 border ${
-                    nft.status === 'active' ? 'border-green-600 text-green-600' : 'border-gray-600 text-gray-600'
-                  }`}>
-                    {nft.status}
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4 mb-4 text-sm">
-                  <div>
-                    <p className="font-medium">{carbonCreditUtils.formatCredits(nft.currentValue)}</p>
-                    <p className="text-gray-600">Current Value</p>
-                  </div>
-                  <div>
-                    <p className="font-medium">{nft.realWorldCO2Impact.toLocaleString()} tons</p>
-                    <p className="text-gray-600">Annual CO₂ Impact</p>
-                  </div>
-                  <div>
-                    <p className="font-medium">{carbonCreditUtils.formatCredits(nft.annualReturns)}</p>
-                    <p className="text-gray-600">Annual Returns</p>
-                  </div>
-                  <div>
-                    <p className="font-medium">{nft.ownershipPercentage}%</p>
-                    <p className="text-gray-600">Ownership</p>
-                  </div>
-                </div>
-
-                {/* Performance Indicator */}
-                <div className="mb-4">
-                  <div className="flex justify-between text-sm mb-1">
-                    <span>Performance</span>
-                    <span className={nft.performanceRatio >= 1 ? 'text-green-600' : 'text-orange-600'}>
-                      {(nft.performanceRatio * 100).toFixed(1)}% of target
+            {(userRole === 'project-owner' ? ownedProjectNFTs : investedProjectNFTs).length === 0 ? (
+              <div className="col-span-2 text-center text-gray-500 py-12">
+                No assets found. {userRole === 'project-owner' ? 'Register a project to get started.' : 'Invest in a project to get started.'}
+              </div>
+            ) : (
+              (userRole === 'project-owner' ? ownedProjectNFTs : investedProjectNFTs).map((nft) => (
+                <div key={nft.id} className="border border-black p-6">
+                  <div className="flex justify-between items-start mb-4">
+                    <div>
+                      <h3 className="font-bold text-lg">{nft.projectName}</h3>
+                      <p className="text-sm text-gray-600">{nft.location} • {nft.projectType}</p>
+                    </div>
+                    <span className={`text-xs px-2 py-1 border ${
+                      nft.status === 'active' ? 'border-green-600 text-green-600' : 'border-gray-600 text-gray-600'
+                    }`}>
+                      {nft.status}
                     </span>
                   </div>
-                  <div className="w-full bg-gray-200 h-2 border border-gray-300">
-                    <div 
-                      className={`h-full ${nft.performanceRatio >= 1 ? 'bg-green-600' : 'bg-orange-600'}`}
-                      style={{ width: `${Math.min(nft.performanceRatio * 100, 100)}%` }}
-                    ></div>
+
+                  <div className="grid grid-cols-2 gap-4 mb-4 text-sm">
+                    <div>
+                      <p className="font-medium">{carbonCreditUtils.formatCredits(nft.currentValue)}</p>
+                      <p className="text-gray-600">Current Value</p>
+                    </div>
+                    <div>
+                      <p className="font-medium">{nft.realWorldCO2Impact?.toLocaleString()} tons</p>
+                      <p className="text-gray-600">Annual CO₂ Impact</p>
+                    </div>
+                    <div>
+                      <p className="font-medium">{carbonCreditUtils.formatCredits(nft.annualReturns)}</p>
+                      <p className="text-gray-600">Annual Returns</p>
+                    </div>
+                    <div>
+                      <p className="font-medium">{nft.ownershipPercentage}%</p>
+                      <p className="text-gray-600">Ownership</p>
+                    </div>
+                  </div>
+
+                  {/* Performance Indicator */}
+                  <div className="mb-4">
+                    <div className="flex justify-between text-sm mb-1">
+                      <span>Performance</span>
+                      <span className={nft.performanceRatio >= 1 ? 'text-green-600' : 'text-orange-600'}>
+                        {(nft.performanceRatio * 100).toFixed(1)}% of target
+                      </span>
+                    </div>
+                    <div className="w-full bg-gray-200 h-2 border border-gray-300">
+                      <div 
+                        className={`h-full ${nft.performanceRatio >= 1 ? 'bg-green-600' : 'bg-orange-600'}`}
+                        style={{ width: `${Math.min(nft.performanceRatio * 100, 100)}%` }}
+                      ></div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    {userRole === 'project-owner' ? (
+                      <>
+                        <button 
+                          className="w-full bg-black text-white py-2 px-4 hover:bg-gray-800 transition-colors text-sm"
+                          onClick={() => alert(`Opening project management dashboard for ${nft.projectName}`)}
+                        >
+                          Manage Project
+                        </button>
+                        <button 
+                          className="w-full border border-black py-2 px-4 hover:bg-black hover:text-white transition-colors text-sm"
+                          onClick={() => handleRetireCredits(nft.id, 25)}
+                        >
+                          Retire Credits for Impact
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button 
+                          className="w-full bg-black text-white py-2 px-4 hover:bg-gray-800 transition-colors text-sm"
+                          onClick={() => handleStakeMore(nft.id)}
+                        >
+                          Stake More Credits
+                        </button>
+                        <button 
+                          className="w-full border border-black py-2 px-4 hover:bg-black hover:text-white transition-colors text-sm"
+                          onClick={() => handleRetireCredits(nft.id, Math.floor(nft.annualReturns / 4))}
+                        >
+                          Retire Quarterly Returns
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
-
-                <div className="space-y-2">
-                  {userRole === 'project-owner' ? (
-                    <>
-                      <button 
-                        className="w-full bg-black text-white py-2 px-4 hover:bg-gray-800 transition-colors text-sm"
-                        onClick={() => alert(`Opening project management dashboard for ${nft.projectName}`)}
-                      >
-                        Manage Project
-                      </button>
-                      <button 
-                        className="w-full border border-black py-2 px-4 hover:bg-black hover:text-white transition-colors text-sm"
-                        onClick={() => handleRetireCredits(nft.id, 25)}
-                      >
-                        Retire Credits for Impact
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <button 
-                        className="w-full bg-black text-white py-2 px-4 hover:bg-gray-800 transition-colors text-sm"
-                        onClick={() => handleStakeMore(nft.id)}
-                      >
-                        Stake More Credits
-                      </button>
-                      <button 
-                        className="w-full border border-black py-2 px-4 hover:bg-black hover:text-white transition-colors text-sm"
-                        onClick={() => handleRetireCredits(nft.id, Math.floor(nft.annualReturns / 4))}
-                      >
-                        Retire Quarterly Returns
-                      </button>
-                    </>
-                  )}
-                </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         )}
 

@@ -59,6 +59,7 @@ export default function CreditBuyerMarketplace() {
   // Replace with real user address (from wallet or session)
   const [userAddress, setUserAddress] = useState<string>('');
 
+
   // Load authenticated user data from localStorage/session (supports email & Google)
   const [currentUser, setCurrentUser] = useState<{ id: string; email: string; role?: string } | null>(null);
 
@@ -415,6 +416,7 @@ export default function CreditBuyerMarketplace() {
                     <p className="text-2xl font-bold text-gray-700">{typeof userBalance.totalCredits === 'number' ? userBalance.totalCredits.toLocaleString() : '0'}</p>
                   </div>
                 </div>
+
                 {userBalance.creditTypes && (
                   <div className="mt-4">
                     <h4 className="font-semibold text-sm mb-2">By Project Type</h4>

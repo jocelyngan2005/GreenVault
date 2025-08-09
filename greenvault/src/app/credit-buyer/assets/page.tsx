@@ -1,8 +1,41 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Navigation from '@/components/Navigation';
+import { smartContractService } from '@/lib/smartContractService';
+
+// Helper to check if a string is a valid Sui object ID
+function isValidSuiObjectId(id: string) {
+  return /^0x[a-fA-F0-9]{40,64}$/.test(id);
+}
+
+// Helper to check if an object ID is a mock/demo ID
+function isMockObjectId(objectId: string): boolean {
+  // Check for various mock/test patterns
+  if (objectId.includes('credit_') || 
+      objectId.startsWith('0x00000000000000000000000000000000000000000000000000000000credit_') ||
+      objectId.includes('mock_') ||
+      (objectId.startsWith('0x') && objectId.length === 66 && objectId.endsWith('00000000'))) {
+    return true;
+  }
+  
+  // Check if the object ID was likely created by converting a UUID
+  // UUIDs converted to Sui object IDs will start with many zeros
+  if (objectId.startsWith('0x') && objectId.length === 66) {
+    // Count leading zeros after 0x
+    const hexPart = objectId.slice(2);
+    const leadingZeros = hexPart.match(/^0*/)?.[0].length || 0;
+    
+    // If more than 24 leading zeros, it's likely a converted UUID or mock ID
+    if (leadingZeros > 24) {
+      return true;
+    }
+  }
+  
+  return false;
+}
 
 interface OwnedNFT {
   id: string;
@@ -30,83 +63,24 @@ export default function CreditBuyerAssets() {
   const [sortBy, setSortBy] = useState('date-desc');
   const [searchTerm, setSearchTerm] = useState('');
 
-  const [ownedNFTs] = useState<OwnedNFT[]>([
-    {
-      id: 'nft-1',
-      projectName: 'Amazon Rainforest Conservation',
-      co2Amount: 1.5,
-      origin: 'Brazil – Forest Conservation',
-      region: 'South America',
-      status: 'active',
-      datePurchased: '2025-08-01',
-      nftCount: 1,
-      projectType: 'Forest Conservation',
-      verification: 'Gold Standard',
-      expiryDate: '2030-08-01',
-      purchasePrice: 25,
-      currentValue: 28
-    },
-    {
-      id: 'nft-2',
-      projectName: 'Solar Farm Initiative',
-      co2Amount: 0.8,
-      origin: 'Kenya – Renewable Energy',
-      region: 'Africa',
-      status: 'active',
-      datePurchased: '2025-07-28',
-      nftCount: 1,
-      projectType: 'Renewable Energy',
-      verification: 'Verra VCS',
-      expiryDate: '2032-07-28',
-      purchasePrice: 18,
-      currentValue: 20
-    },
-    {
-      id: 'nft-3',
-      projectName: 'Coastal Mangrove Restoration',
-      co2Amount: 2.1,
-      origin: 'Philippines – Ecosystem Restoration',
-      region: 'Asia',
-      status: 'retired',
-      datePurchased: '2025-07-15',
-      retiredDate: '2025-07-20',
-      nftCount: 2,
-      projectType: 'Ecosystem Restoration',
-      verification: 'Climate Action Reserve',
-      purchasePrice: 22,
-      currentValue: 22
-    },
-    {
-      id: 'nft-4',
-      projectName: 'Wind Energy Morocco',
-      co2Amount: 3.2,
-      origin: 'Morocco – Renewable Energy',
-      region: 'Africa',
-      status: 'active',
-      datePurchased: '2025-07-10',
-      nftCount: 2,
-      projectType: 'Renewable Energy',
-      verification: 'Gold Standard',
-      expiryDate: '2035-07-10',
-      purchasePrice: 19,
-      currentValue: 21
-    },
-    {
-      id: 'nft-5',
-      projectName: 'Clean Cooking Stoves Uganda',
-      co2Amount: 1.0,
-      origin: 'Uganda – Clean Cooking',
-      region: 'Africa',
-      status: 'active',
-      datePurchased: '2025-06-25',
-      nftCount: 3,
-      projectType: 'Clean Cooking',
-      verification: 'Gold Standard',
-      expiryDate: '2028-06-25',
-      purchasePrice: 12,
-      currentValue: 15
+  const [ownedNFTs, setOwnedNFTs] = useState<OwnedNFT[]>([]);
+
+  useEffect(() => {
+    // Load purchased NFTs from localStorage (simulate demo)
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('purchasedNFTs');
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          setOwnedNFTs(parsed);
+        } catch (e) {
+          setOwnedNFTs([]);
+        }
+      } else {
+        setOwnedNFTs([]);
+      }
     }
-  ]);
+  }, []);
 
   const regions = ['All', 'Africa', 'Asia', 'South America', 'North America', 'Europe'];
   const projectTypes = ['All', 'Forest Conservation', 'Renewable Energy', 'Ecosystem Restoration', 'Clean Cooking', 'Agriculture'];
@@ -143,10 +117,45 @@ export default function CreditBuyerAssets() {
   const totalPurchasePrice = ownedNFTs.reduce((sum, nft) => sum + (nft.purchasePrice * nft.nftCount), 0);
   const totalNFTs = ownedNFTs.reduce((sum, nft) => sum + nft.nftCount, 0);
 
-  const retireNFT = (nftId: string) => {
-    // This would typically make an API call to retire the NFT
-    console.log('Retiring NFT:', nftId);
-    alert('NFT retirement functionality would be implemented here');
+  const retireNFT = async (nftId: string) => {
+    const nft = ownedNFTs.find(n => n.id === nftId);
+    if (!nft) return;
+    
+    if (!isValidSuiObjectId(nftId)) {
+      alert('This NFT has an invalid ID format and cannot be retired.');
+      return;
+    }
+    
+    if (isMockObjectId(nftId)) {
+      alert('This is a demo NFT. In development mode, this will be processed as a mock retirement.');
+    }
+    
+    const reason = prompt('Enter a reason for retirement:', 'Offsetting emissions');
+    if (!reason) return;
+    
+    try {
+      const result = await smartContractService.retireCarbonCredit({
+        creditId: nftId,
+        retirementReason: reason,
+      });
+      if (result.success) {
+        // Update localStorage and UI
+        const updatedNFTs = ownedNFTs.map(n =>
+          n.id === nftId
+            ? { ...n, status: 'retired' as 'retired', retiredDate: new Date().toISOString() }
+            : n
+        );
+        setOwnedNFTs(updatedNFTs);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('purchasedNFTs', JSON.stringify(updatedNFTs));
+        }
+        alert('NFT retired successfully!');
+      } else {
+        alert('Failed to retire NFT: ' + (result.error || 'Unknown error'));
+      }
+    } catch (e) {
+      alert('Error retiring NFT: ' + (e instanceof Error ? e.message : 'Unknown error'));
+    }
   };
 
   return (
@@ -296,7 +305,14 @@ export default function CreditBuyerAssets() {
               <div key={nft.id} className="border border-black p-6 bg-white">
                 <div className="flex justify-between items-start mb-4">
                   <div>
-                    <h3 className="font-bold text-lg mb-1">{nft.projectName}</h3>
+                    <div className="flex items-center gap-2 mb-1">
+                      <h3 className="font-bold text-lg">{nft.projectName}</h3>
+                      {isMockObjectId(nft.id) && (
+                        <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded">
+                          DEMO
+                        </span>
+                      )}
+                    </div>
                     <p className="text-sm text-gray-600">{nft.origin}</p>
                   </div>
                   <span className={`px-2 py-1 rounded text-xs font-medium ${
@@ -447,3 +463,4 @@ export default function CreditBuyerAssets() {
     </Navigation>
   );
 }
+
