@@ -123,23 +123,9 @@ export default function NewProjectPage() {
       setIsLoading(false);
       
       if (result.success) {
-        // Save to localStorage for dashboard display
-        const stored = localStorage.getItem('projects');
-        const projects = stored ? JSON.parse(stored) : [];
-        const newProject = {
-          id: contractData.projectId,
-          name: contractData.name,
-          type: formData.type,
-          location: contractData.location,
-          co2Amount: contractData.co2ReductionCapacity,
-          status: 'submitted',
-          nftMinted: false,
-          salesCount: 0,
-          totalRevenue: 0,
-          createdDate: new Date().toISOString().slice(0, 10)
-        };
-        projects.push(newProject);
-        localStorage.setItem('projects', JSON.stringify(projects));
+        // Project registered successfully on blockchain
+        // No need to save to localStorage - data will be fetched from blockchain
+        localStorage.removeItem('projects'); // Clear any old localStorage data
         alert('Project registered successfully on blockchain! Tx: ' + result.txDigest);
         window.location.href = '/project-owner';
       } else {

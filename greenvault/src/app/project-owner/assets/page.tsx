@@ -8,6 +8,21 @@ import Navigation from '@/components/Navigation';
 import { smartContractService } from '@/lib/smartContractService';
 import { getTestUserAddress } from '@/lib/suiUtils';
 
+// Helper function to convert project type number to name
+const getProjectTypeName = (projectType: number | undefined): string => {
+  const types = [
+    'Forest Conservation', 
+    'Reforestation', 
+    'Renewable Energy', 
+    'Ecosystem Restoration', 
+    'Clean Cooking', 
+    'Sustainable Agriculture', 
+    'Waste Management', 
+    'Water Conservation'
+  ];
+  return projectType !== undefined && projectType < types.length ? types[projectType] : 'Unknown';
+};
+
 interface MintedNFT {
   object_id: string;
   owner_address: string;
@@ -73,6 +88,8 @@ export default function AssetsPage() {
 
         // Get user address
         const address = getTestUserAddress();
+        console.log('🔍 Debug - Current user address:', address);
+        
         if (!address) {
           setError('No user address found. Please ensure you are logged in.');
           return;
@@ -85,137 +102,147 @@ export default function AssetsPage() {
 
         setUserAddress(address);
 
-        // Load projects from localStorage
-        const storedProjects = localStorage.getItem('projects');
-        const localProjects = storedProjects ? JSON.parse(storedProjects) : [];
-
-        // Convert local projects to minted credits format
-        const localMintedCredits: MintedNFT[] = localProjects
-          .filter((project: any) => project.nftMinted && project.status !== 'draft')
-          .map((project: any) => ({
-            object_id: project.creditObjectId || `local_${project.id}`,
-            owner_address: address,
-            project_name: project.name,
-            credit_amount: project.co2Amount,
-            verification_status: project.status === 'verified' || project.status === 'listed' ? 'verified' : 'pending',
-            timestamp: project.createdDate || new Date().toISOString(),
-            project_description: `${project.type} project in ${project.location}`,
-            verification_method: 'VCS-Standard',
-            metadata: {
-              environmental_impact: `${project.co2Amount} tons CO2 reduced`,
-              location: project.location,
-              project_type: project.type
-            }
-          }));
-
-        // Try to load additional minted credits from blockchain
+        // Load registered projects (which contain minted credits info)
         try {
-          const mintedResponse = await smartContractService.getMintedCredits(address);
-          const blockchainCredits = (mintedResponse.success && Array.isArray(mintedResponse.data)) 
-            ? mintedResponse.data : [];
+          const projectsResponse = await smartContractService.getRegisteredProjects(address);
+          console.log('📋 Projects response:', projectsResponse);
           
-          // Combine local and blockchain credits, avoiding duplicates
-          const allCredits = [...localMintedCredits];
-          blockchainCredits.forEach((blockchainCredit: any) => {
-            const exists = allCredits.some(localCredit => 
-              localCredit.object_id === blockchainCredit.object_id ||
-              localCredit.project_name === blockchainCredit.project_name
-            );
-            if (!exists) {
-              allCredits.push(blockchainCredit);
-            }
-          });
-          
-          setMintedCredits(allCredits);
-          
-          // Calculate analytics based on all credits
-          const totalMinted = allCredits.reduce((sum: number, credit: any) => sum + (credit.credit_amount || 0), 0);
-          const totalRevenue = localProjects.reduce((sum: number, project: any) => sum + (project.totalRevenue || 0), 0);
-          const verifiedCredits = allCredits.filter((credit: any) => credit.verification_status === 'verified').length;
-          const projectsActive = new Set(allCredits.map((credit: any) => credit.project_name)).size;
-          const totalSold = localProjects.reduce((sum: number, project: any) => sum + (project.salesCount || 0), 0);
-          
-          setAnalytics({
-            totalMinted,
-            totalRevenue,
-            averagePrice: totalMinted > 0 ? (totalRevenue / totalMinted) : 0,
-            creditsSold: totalSold,
-            projectsActive,
-            verificationRate: allCredits.length > 0 ? (verifiedCredits / allCredits.length) * 100 : 0
-          });
-        } catch (err) {
-          console.error('Error loading blockchain credits:', err);
-          // Use only local credits if blockchain fails
-          setMintedCredits(localMintedCredits);
-          
-          const totalMinted = localMintedCredits.reduce((sum: number, credit: any) => sum + (credit.credit_amount || 0), 0);
-          const totalRevenue = localProjects.reduce((sum: number, project: any) => sum + (project.totalRevenue || 0), 0);
-          const verifiedCredits = localMintedCredits.filter((credit: any) => credit.verification_status === 'verified').length;
-          
-          setAnalytics({
-            totalMinted,
-            totalRevenue,
-            averagePrice: totalMinted > 0 ? (totalRevenue / totalMinted) : 0,
-            creditsSold: localProjects.reduce((sum: number, project: any) => sum + (project.salesCount || 0), 0),
-            projectsActive: localMintedCredits.length,
-            verificationRate: localMintedCredits.length > 0 ? (verifiedCredits / localMintedCredits.length) * 100 : 0
-          });
-        }
-
-        // Create transactions from local projects
-        const projectTransactions: Transaction[] = [];
-        
-        localProjects.forEach((project: any) => {
-          // Add mint transaction for minted projects
-          if (project.nftMinted) {
-            projectTransactions.push({
-              id: `mint_${project.id}`,
-              type: 'mint',
-              amount: project.co2Amount,
-              timestamp: project.createdDate || new Date().toISOString(),
-              status: 'completed',
+          if (projectsResponse.success && projectsResponse.data && projectsResponse.data.projects) {
+            const projects = projectsResponse.data.projects;
+            
+            // Filter projects that have minted credits (creditObjectId exists)
+            const projectsWithCredits = projects.filter((project: any) => project.creditObjectId);
+            console.log('💳 Projects with minted credits:', projectsWithCredits);
+            
+            // Convert projects to minted credits format
+            const mintedCredits: MintedNFT[] = projectsWithCredits.map((project: any) => ({
+              object_id: project.creditObjectId,
+              owner_address: project.owner || address,
               project_name: project.name,
-              to: address,
-              price: project.co2Amount * 20 // Estimated price
+              credit_amount: project.co2ReductionCapacity || 0,
+              verification_status: project.verified ? 'verified' : (project.submitted ? 'pending' : 'draft'),
+              timestamp: project.registrationDate || new Date().toISOString(),
+              project_description: project.description,
+              verification_method: 'Blockchain Verification',
+              metadata: {
+                environmental_impact: `${project.co2ReductionCapacity || 0} tons CO₂ reduction`,
+                location: project.location,
+                project_type: getProjectTypeName(project.projectType)
+              }
+            }));
+            
+            setMintedCredits(mintedCredits);
+            
+            // Calculate analytics based on project data
+            const totalMinted = projects.reduce((sum: number, project: any) => 
+              sum + (project.creditObjectId ? (project.co2ReductionCapacity || 0) : 0), 0);
+            const totalRevenue = projects.reduce((sum: number, project: any) => 
+              sum + (project.totalRevenue || 0), 0);
+            const verifiedCredits = projectsWithCredits.filter((project: any) => project.verified).length;
+            const projectsActive = projectsWithCredits.length;
+            const totalSold = projects.reduce((sum: number, project: any) => 
+              sum + (project.salesCount || 0), 0);
+            
+            setAnalytics({
+              totalMinted,
+              totalRevenue,
+              averagePrice: totalMinted > 0 ? (totalRevenue / totalMinted) : 20, // Default $20 per credit
+              creditsSold: totalSold,
+              projectsActive,
+              verificationRate: projectsWithCredits.length > 0 ? 
+                (verifiedCredits / projectsWithCredits.length) * 100 : 0
             });
-          }
-          
-          // Add listing transaction for listed projects
-          if (project.status === 'listed') {
-            projectTransactions.push({
-              id: `list_${project.id}`,
-              type: 'transfer',
-              amount: project.co2Amount,
-              timestamp: project.createdDate || new Date().toISOString(),
-              status: 'completed',
-              project_name: project.name,
-              from: address,
-              to: 'marketplace',
-              price: project.co2Amount * 20
-            });
-          }
-          
-          // Add sales transactions if any
-          if (project.salesCount > 0) {
-            for (let i = 0; i < project.salesCount; i++) {
-              projectTransactions.push({
-                id: `sale_${project.id}_${i}`,
-                type: 'purchase',
-                amount: Math.floor(project.co2Amount / project.salesCount),
-                timestamp: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString(),
+            
+            // Create transactions from project data
+            const transactions: Transaction[] = [];
+            
+            projects.forEach((project: any) => {
+              // Add registration transaction
+              transactions.push({
+                id: `register_${project.projectId}`,
+                type: 'mint',
+                amount: 0,
+                timestamp: project.registrationDate || new Date().toISOString(),
                 status: 'completed',
                 project_name: project.name,
-                from: address,
-                to: `buyer_${i}`,
-                price: Math.floor((project.totalRevenue || 0) / project.salesCount)
+                to: address
               });
-            }
+              
+              // Add minting transaction if credit exists
+              if (project.creditObjectId) {
+                transactions.push({
+                  id: `mint_${project.projectId}`,
+                  type: 'mint',
+                  amount: project.co2ReductionCapacity || 0,
+                  timestamp: project.registrationDate || new Date().toISOString(),
+                  status: 'completed',
+                  project_name: project.name,
+                  to: address,
+                  price: (project.co2ReductionCapacity || 0) * 20 // $20 per credit
+                });
+              }
+              
+              // Add listing transaction if project status is listed
+              if (project.status === 'listed') {
+                transactions.push({
+                  id: `list_${project.projectId}`,
+                  type: 'transfer',
+                  amount: project.co2ReductionCapacity || 0,
+                  timestamp: project.registrationDate || new Date().toISOString(),
+                  status: 'completed',
+                  project_name: project.name,
+                  from: address,
+                  to: 'marketplace',
+                  price: (project.co2ReductionCapacity || 0) * 20
+                });
+              }
+              
+              // Add purchase transactions based on sales count
+              for (let i = 0; i < (project.salesCount || 0); i++) {
+                transactions.push({
+                  id: `sale_${project.projectId}_${i}`,
+                  type: 'purchase',
+                  amount: Math.floor((project.co2ReductionCapacity || 0) / (project.salesCount || 1)),
+                  timestamp: new Date(Date.now() - (i * 24 * 60 * 60 * 1000)).toISOString(),
+                  status: 'completed',
+                  project_name: project.name,
+                  from: address,
+                  to: 'buyer',
+                  price: Math.floor((project.co2ReductionCapacity || 0) / (project.salesCount || 1)) * 20
+                });
+              }
+            });
+            
+            setTransactions(transactions.sort((a, b) => 
+              new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+            ));
+            
+          } else {
+            console.log('No projects found or error:', projectsResponse.error);
+            setMintedCredits([]);
+            setAnalytics({
+              totalMinted: 0,
+              totalRevenue: 0,
+              averagePrice: 0,
+              creditsSold: 0,
+              projectsActive: 0,
+              verificationRate: 0
+            });
+            setTransactions([]);
           }
-        });
-        
-        setTransactions(projectTransactions.sort((a, b) => 
-          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-        ));
+        } catch (err) {
+          console.error('Error loading projects data:', err);
+          setMintedCredits([]);
+          setAnalytics({
+            totalMinted: 0,
+            totalRevenue: 0,
+            averagePrice: 0,
+            creditsSold: 0,
+            projectsActive: 0,
+            verificationRate: 0
+          });
+          setTransactions([]);
+        }
 
       } catch (err) {
         console.error('Error loading assets:', err);

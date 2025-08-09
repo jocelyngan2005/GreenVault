@@ -12,7 +12,7 @@ interface Project {
   type: string;
   location: string;
   co2Amount: number;
-  status: 'draft' | 'submitted' | 'verified' | 'listed';
+  status: 'draft' | 'registered' | 'submitted' | 'verified' | 'listed';
   nftMinted: boolean;
   salesCount: number;
   totalRevenue: number;
@@ -24,6 +24,7 @@ export default function ProjectOwnerDashboard() {
   // Loading states for different operations
   const [mintLoading, setMintLoading] = useState(false);
   const [listLoading, setListLoading] = useState(false);
+  const [verifyLoading, setVerifyLoading] = useState(false);
   
   // Mock user address - in real app, get from wallet/auth
   const userAddress = getTestUserAddress();
@@ -41,23 +42,132 @@ export default function ProjectOwnerDashboard() {
     }
   };
 
+  // Always fetch user credits and projects from blockchain, not localStorage
   useEffect(() => {
     fetchUserCredits();
   }, [userAddress]);
 
   const [projects, setProjects] = useState<Project[]>([]);
-  // Load projects from localStorage on mount
+  
+  // Load projects from blockchain on mount
   useEffect(() => {
-    const stored = localStorage.getItem('projects');
-    if (stored) {
-      setProjects(JSON.parse(stored));
+    const loadProjects = async () => {
+      try {
+        const registeredProjectsResult = await smartContractService.getRegisteredProjects(userAddress);
+        if (registeredProjectsResult.success && registeredProjectsResult.data) {
+          const blockchainProjects: Project[] = registeredProjectsResult.data.projects?.map((project: any) => ({
+            id: project.projectId || project.id,
+            name: project.name,
+            type: project.projectType !== undefined ? 
+              ['Forest Conservation', 'Reforestation', 'Renewable Energy', 'Ecosystem Restoration', 'Clean Cooking', 'Sustainable Agriculture', 'Waste Management', 'Water Conservation'][project.projectType] || 'Unknown' 
+              : 'Unknown',
+            location: project.location,
+            co2Amount: project.co2ReductionCapacity || project.quantity || 0,
+            // Show status based on available fields
+            status: project.status || (project.verified ? 'verified' : (project.submitted ? 'submitted' : 'draft')),
+            nftMinted: project.creditObjectId ? true : false,
+            salesCount: project.salesCount || 0,
+            totalRevenue: project.totalRevenue || 0,
+            createdDate: project.createdDate || new Date().toISOString().slice(0, 10),
+            creditObjectId: project.creditObjectId
+          })) || [];
+          setProjects(blockchainProjects);
+        } else {
+          setProjects([]);
+        }
+      } catch (error) {
+        setProjects([]);
+      }
+    };
+    if (userAddress) {
+      loadProjects();
     }
-  }, []);
+  }, [userAddress]);
 
-  // Helper to update localStorage when projects change
-  const updateProjects = (newProjects: Project[]) => {
-    setProjects(newProjects);
-    localStorage.setItem('projects', JSON.stringify(newProjects));
+  // Helper to refresh projects from blockchain
+  const refreshProjects = async () => {
+    try {
+      const registeredProjectsResult = await smartContractService.getRegisteredProjects(userAddress);
+      if (registeredProjectsResult.success && registeredProjectsResult.data) {
+        const blockchainProjects: Project[] = registeredProjectsResult.data.projects?.map((project: any) => ({
+          id: project.projectId || project.id,
+          name: project.name,
+          type: project.projectType !== undefined ? 
+            ['Forest Conservation', 'Reforestation', 'Renewable Energy', 'Ecosystem Restoration', 'Clean Cooking', 'Sustainable Agriculture', 'Waste Management', 'Water Conservation'][project.projectType] || 'Unknown' 
+            : 'Unknown',
+          location: project.location,
+          co2Amount: project.co2ReductionCapacity || project.quantity || 0,
+          status: project.status || (project.verified ? 'verified' : (project.submitted ? 'submitted' : 'draft')),
+          nftMinted: project.creditObjectId ? true : false,
+          salesCount: project.salesCount || 0,
+          totalRevenue: project.totalRevenue || 0,
+          createdDate: project.createdDate || new Date().toISOString().slice(0, 10),
+          creditObjectId: project.creditObjectId
+        })) || [];
+        setProjects(blockchainProjects);
+      }
+    } catch (error) {
+      // ...existing code...
+    }
+  };
+  // Handle submit for verification (for draft/registered projects)
+  const handleSubmitForVerification = async (project: Project) => {
+    setVerifyLoading(true);
+    try {
+      // For "Submit for Verification", we use the same verifyProject endpoint
+      // but the backend will determine action based on current project status
+      const result = await smartContractService.verifyProject(project.id);
+      if (result.success) {
+        setNotification({
+          type: 'success',
+          message: `Project submitted for verification! TX: ${result.txDigest?.slice(0, 10)}...`
+        });
+        await refreshProjects();
+      } else {
+        setNotification({
+          type: 'error',
+          message: result.error || 'Submission failed'
+        });
+      }
+    } catch (error) {
+      setNotification({
+        type: 'error',
+        message: 'Submission failed. Please try again.'
+      });
+    } finally {
+      setVerifyLoading(false);
+    }
+  };
+
+  // Handle project verification (for submitted projects)
+  const handleVerifyProject = async (project: Project) => {
+    setVerifyLoading(true);
+    try {
+      // For "Verify", we use the same verifyProject endpoint
+      // but the backend will determine action based on current project status
+      const result = await smartContractService.verifyProject(project.id);
+
+      if (result.success) {
+        setNotification({
+          type: 'success',
+          message: `Project verified successfully on blockchain! TX: ${result.txDigest?.slice(0, 10)}...`
+        });
+        // Refresh projects from blockchain to get updated data
+        await refreshProjects();
+      } else {
+        setNotification({
+          type: 'error',
+          message: result.error || 'Verification failed'
+        });
+      }
+    } catch (error) {
+      setNotification({
+        type: 'error',
+        message: 'Verification failed. Please try again.'
+      });
+    } finally {
+      setVerifyLoading(false);
+    }
   };
 
   const [showNewProjectForm, setShowNewProjectForm] = useState(false);
@@ -65,7 +175,6 @@ export default function ProjectOwnerDashboard() {
 
   // Handle NFT minting for verified projects
   const handleMintNFT = async (project: Project) => {
-    console.log('[handleMintNFT] Called for project:', project);
     setMintLoading(true);
     try {
       const creditData = {
@@ -77,62 +186,121 @@ export default function ProjectOwnerDashboard() {
         metadataUri: `https://metadata.greenvault.com/${project.id}`,
         co2DataHash: `hash_${project.id}_${Date.now()}`,
       };
-
-      console.log('[handleMintNFT] About to call smartContractService.mintCarbonCredit with:', creditData);
-      const result = await smartContractService.mintCarbonCredit(creditData);
-      console.log('[handleMintNFT] Mint result:', result);
-
-      // Try to extract the real credit object id from result.objectChanges
-      let creditObjectId = undefined;
-      console.log('[handleMintNFT] Full result object:', JSON.stringify(result, null, 2));
       
+      console.log('[handleMintNFT] Minting with data:', creditData);
+      const result = await smartContractService.mintCarbonCredit(creditData);
+      console.log('[handleMintNFT] Full mint result:', result);
+      
+      let creditObjectId: string | undefined = undefined;
+      
+      // Try to extract credit object ID from various possible locations in the response
       if (result.success && result.objectChanges && Array.isArray(result.objectChanges)) {
-        console.log('[handleMintNFT] ObjectChanges array:', result.objectChanges);
+        console.log('[handleMintNFT] ObjectChanges:', result.objectChanges);
         
-        // Look for created objects
+        // Look for created objects first
         const createdObjects = result.objectChanges.filter((obj: any) => 
-          obj.type === 'created' || 
-          (obj.objectChange && obj.objectChange.type === 'created')
+          obj.type === 'created' || (obj.objectChange && obj.objectChange.type === 'created')
         );
         console.log('[handleMintNFT] Created objects:', createdObjects);
         
-        // Find the carbon credit object
+        // Strategy 1: Find carbon credit object by type
         const carbonCreditObject = result.objectChanges.find((obj: any) => {
-          // Check different possible structures
-          const objectType = obj.objectType || obj.type || 
-            (obj.objectChange && obj.objectChange.objectType);
+          const objectType = obj.objectType || obj.type || (obj.objectChange && obj.objectChange.objectType);
           return objectType && 
             typeof objectType === 'string' && 
-            objectType.includes('CarbonCredit');
+            (objectType.includes('CarbonCredit') || objectType.includes('carbon_credit'));
         });
-        
-        console.log('[handleMintNFT] Carbon credit object found:', carbonCreditObject);
         
         if (carbonCreditObject) {
-          // Extract object ID from different possible locations
           creditObjectId = carbonCreditObject.objectId || 
-            carbonCreditObject.id ||
-            (carbonCreditObject.objectChange && carbonCreditObject.objectChange.objectId);
+                          carbonCreditObject.id || 
+                          (carbonCreditObject.objectChange && carbonCreditObject.objectChange.objectId);
+          console.log('[handleMintNFT] Found creditObjectId via CarbonCredit type:', creditObjectId);
+        }
+        
+        // Strategy 2: If not found, try any created object with proper structure
+        if (!creditObjectId && createdObjects.length > 0) {
+          for (const obj of createdObjects) {
+            const possibleId = obj.objectId || obj.id || (obj.objectChange && obj.objectChange.objectId);
+            if (possibleId && typeof possibleId === 'string' && possibleId.startsWith('0x')) {
+              creditObjectId = possibleId;
+              console.log('[handleMintNFT] Using fallback creditObjectId:', creditObjectId);
+              break;
+            }
+          }
+        }
+        
+        // Strategy 3: Check if there's a direct objectChanges array entry with objectId
+        if (!creditObjectId) {
+          for (const obj of result.objectChanges) {
+            if (obj.objectId && typeof obj.objectId === 'string' && obj.objectId.startsWith('0x')) {
+              creditObjectId = obj.objectId;
+              console.log('[handleMintNFT] Using direct objectId:', creditObjectId);
+              break;
+            }
+          }
         }
       }
-      console.log('[handleMintNFT] Extracted creditObjectId:', creditObjectId);
-
-      // Fallback: if we can't extract real object ID, generate a mock one for testing
-      if (!creditObjectId && result.success) {
-        creditObjectId = `0x${Math.random().toString(16).substring(2, 10).padStart(8, '0')}mock${Date.now().toString(16)}`;
-        console.log('[handleMintNFT] Generated fallback mock creditObjectId:', creditObjectId);
+      
+      // Strategy 4: If still no creditObjectId, try to extract from events
+      if (!creditObjectId && result.events && Array.isArray(result.events)) {
+        console.log('[handleMintNFT] Trying to extract from events:', result.events);
+        for (const event of result.events) {
+          if (event.parsedJson && event.parsedJson.credit_id) {
+            creditObjectId = event.parsedJson.credit_id;
+            console.log('[handleMintNFT] Found creditObjectId in event:', creditObjectId);
+            break;
+          }
+        }
       }
-
+      
+      console.log('[handleMintNFT] Final creditObjectId:', creditObjectId);
+      
       if (result.success) {
+        // Refresh projects first to get any backend updates
+        await refreshProjects();
+        
+        // If we still don't have creditObjectId, try to get it from refreshed projects
+        if (!creditObjectId) {
+          const refreshedProject = projects.find(p => p.id === project.id);
+          if (refreshedProject && refreshedProject.creditObjectId) {
+            creditObjectId = refreshedProject.creditObjectId;
+            console.log('[handleMintNFT] Found creditObjectId from refreshed project:', creditObjectId);
+          }
+        }
+        
+        // Update the project immediately in local state with the credit object ID
+        const updatedProject = { ...project, nftMinted: true, creditObjectId };
+        
+        setProjects((prev) => prev.map((p) =>
+          p.id === project.id ? updatedProject : p
+        ));
+        
         setNotification({
           type: 'success',
-          message: `NFT minted successfully on blockchain! TX: ${result.txDigest?.slice(0, 10)}...`
+          message: `NFT minted successfully on blockchain! TX: ${result.txDigest?.slice(0, 10)}...${creditObjectId ? ' Credit ID: ' + creditObjectId.slice(0, 8) + '...' : ''}`
         });
-        // Update project status, store creditObjectId, and persist
-        updateProjects(projects.map(p =>
-          p.id === project.id ? { ...p, nftMinted: true, creditObjectId } : p
-        ));
-        await fetchUserCredits(); // Refresh user credits
+        
+        await fetchUserCredits();
+        
+        // Wait a moment for state to update, then automatically proceed to listing
+        setTimeout(async () => {
+          if (creditObjectId) {
+            console.log('[handleMintNFT] Auto-listing with creditObjectId:', creditObjectId);
+            await handleListCredit(updatedProject);
+          } else {
+            console.warn('[handleMintNFT] No creditObjectId found, cannot auto-list');
+            setNotification({
+              type: 'error',
+              message: 'NFT minted but credit ID not found. Please refresh and try listing manually.'
+            });
+          }
+        }, 2000); // Increased delay to allow for proper state sync
+        
+        // Final refresh to ensure consistency
+        setTimeout(async () => {
+          await refreshProjects();
+        }, 3000);
       } else {
         setNotification({
           type: 'error',
@@ -140,7 +308,7 @@ export default function ProjectOwnerDashboard() {
         });
       }
     } catch (error) {
-      console.error('[handleMintNFT] Error during minting:', error);
+      console.error('[handleMintNFT] Error:', error);
       setNotification({
         type: 'error',
         message: 'Minting failed. Please try again.'
@@ -152,18 +320,25 @@ export default function ProjectOwnerDashboard() {
 
   // Handle listing credit for sale
   const handleListCredit = async (project: Project) => {
+    console.log('[handleListCredit] Called with project:', project);
     setListLoading(true);
     try {
       // Use the real credit object ID from the project
       const creditId = project.creditObjectId;
+      console.log('[handleListCredit] Credit ID:', creditId);
+      
       if (!creditId) {
+        console.error('[handleListCredit] No credit object ID found in project:', project);
         setNotification({
           type: 'error',
           message: 'Credit object ID not found. Please mint the NFT first.'
         });
+        setListLoading(false);
         return;
       }
+      
       const price = Math.floor(project.co2Amount * 20 * 1000000000); // Price in mist units
+      console.log('[handleListCredit] Listing price:', price);
 
       const result = await smartContractService.listCreditForSale({
         creditId,
@@ -171,15 +346,15 @@ export default function ProjectOwnerDashboard() {
         reservedForCommunity: false
       });
 
+      console.log('[handleListCredit] List result:', result);
+
       if (result.success) {
         setNotification({
           type: 'success',
           message: `Credit listed for sale on blockchain! TX: ${result.txDigest?.slice(0, 10)}...`
         });
-        // Update project status and persist
-        updateProjects(projects.map(p =>
-          p.id === project.id ? { ...p, status: 'listed' } : p
-        ));
+        // Refresh projects from blockchain to get updated data
+        await refreshProjects();
       } else {
         setNotification({
           type: 'error',
@@ -187,6 +362,7 @@ export default function ProjectOwnerDashboard() {
         });
       }
     } catch (error) {
+      console.error('[handleListCredit] Error:', error);
       setNotification({
         type: 'error',
         message: 'Listing failed. Please try again.'
@@ -207,7 +383,8 @@ export default function ProjectOwnerDashboard() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'draft': return 'text-gray-600 bg-gray-100';
-      case 'submitted': return 'text-blue-600 bg-blue-100';
+      case 'registered': return 'text-blue-600 bg-blue-100';
+      case 'submitted': return 'text-yellow-600 bg-yellow-100';
       case 'verified': return 'text-green-600 bg-green-100';
       case 'listed': return 'text-purple-600 bg-purple-100';
       default: return 'text-gray-600 bg-gray-100';
@@ -337,6 +514,26 @@ export default function ProjectOwnerDashboard() {
                         <button className="text-sm text-blue-600 hover:underline">
                           Edit
                         </button>
+                        {/* Allow submit for verification if project is draft or registered (not yet submitted) */}
+                        {(project.status === 'draft' || project.status === 'registered') && (
+                          <button
+                            onClick={() => handleSubmitForVerification(project)}
+                            disabled={verifyLoading}
+                            className="text-sm text-orange-600 hover:underline disabled:opacity-50"
+                          >
+                            {verifyLoading ? 'Submitting...' : 'Submit for Verification'}
+                          </button>
+                        )}
+                        {/* Allow verify if project is submitted */}
+                        {project.status === 'submitted' && (
+                          <button 
+                            onClick={() => handleVerifyProject(project)}
+                            disabled={verifyLoading}
+                            className="text-sm text-orange-600 hover:underline disabled:opacity-50"
+                          >
+                            {verifyLoading ? 'Verifying...' : 'Verify'}
+                          </button>
+                        )}
                         {project.status === 'verified' && !project.nftMinted && (
                           <button 
                             onClick={() => {
