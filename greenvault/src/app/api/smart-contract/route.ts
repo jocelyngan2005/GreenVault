@@ -167,13 +167,14 @@ async function registerProject(data: any, keypair: Ed25519Keypair) {
     ],
   });
 
+  tx.setGasBudget(100000000); // <-- Set a reasonable gas budget (adjust as needed)
   const result = await suiClient.signAndExecuteTransaction({
     signer: keypair,
     transaction: tx,
     options: {
       showEffects: true,
       showEvents: true,
-    },
+    }
   });
 
   return NextResponse.json({
@@ -328,8 +329,8 @@ async function buyCarbonCredit(data: any, keypair: Ed25519Keypair) {
     });
   }
 
+
   const tx = new Transaction();
-  
   const marketplaceId = process.env.MARKETPLACE_ID || '0x2';
   const [paymentCoin] = tx.splitCoins(tx.gas, [data.paymentAmount]);
 
@@ -341,6 +342,8 @@ async function buyCarbonCredit(data: any, keypair: Ed25519Keypair) {
       paymentCoin,
     ],
   });
+  // Set a reasonable gas budget (adjust as needed)
+  tx.setGasBudget(100000000);
 
   const result = await suiClient.signAndExecuteTransaction({
     signer: keypair,

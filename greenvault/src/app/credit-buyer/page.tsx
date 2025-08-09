@@ -54,24 +54,7 @@ export default function CreditBuyerDashboard() {
     deadline: '2025-08-31'
   });
 
-  const [recentPurchases] = useState<Purchase[]>([
-    {
-      id: '1',
-      projectName: 'Amazon Rainforest Conservation',
-      amount: 1.5,
-      price: 25,
-      date: '2025-08-01',
-      status: 'completed'
-    },
-    {
-      id: '2',
-      projectName: 'Solar Farm Initiative',
-      amount: 0.8,
-      price: 18,
-      date: '2025-07-28',
-      status: 'completed'
-    }
-  ]);
+  const [recentPurchases, setRecentPurchases] = useState<Purchase[]>([]);
 
   const [recommendedCredits] = useState<CarbonCredit[]>([
     {
@@ -96,41 +79,33 @@ export default function CreditBuyerDashboard() {
     }
   ]);
 
-  const [ownedNFTs] = useState<OwnedNFT[]>([
-    {
-      id: 'nft-1',
-      projectName: 'Amazon Rainforest Conservation',
-      co2Amount: 1.5,
-      origin: 'Brazil – Forest Conservation',
-      status: 'active',
-      datePurchased: '2025-08-01',
-      nftCount: 1,
-      projectType: 'Forest Conservation',
-      verification: 'Gold Standard'
-    },
-    {
-      id: 'nft-2',
-      projectName: 'Solar Farm Initiative',
-      co2Amount: 0.8,
-      origin: 'Kenya – Renewable Energy',
-      status: 'active',
-      datePurchased: '2025-07-28',
-      nftCount: 1,
-      projectType: 'Renewable Energy',
-      verification: 'Verra VCS'
-    },
-    {
-      id: 'nft-3',
-      projectName: 'Coastal Mangrove Restoration',
-      co2Amount: 2.1,
-      origin: 'Philippines – Ecosystem Restoration',
-      status: 'retired',
-      datePurchased: '2025-07-15',
-      nftCount: 2,
-      projectType: 'Ecosystem Restoration',
-      verification: 'Climate Action Reserve'
+  const [ownedNFTs, setOwnedNFTs] = useState<OwnedNFT[]>([]);
+  // Load ownedNFTs and recentPurchases from localStorage (simulate demo)
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const storedNFTs = localStorage.getItem('purchasedNFTs');
+      if (storedNFTs) {
+        try {
+          setOwnedNFTs(JSON.parse(storedNFTs));
+        } catch {
+          setOwnedNFTs([]);
+        }
+      } else {
+        setOwnedNFTs([]);
+      }
+
+      const storedPurchases = localStorage.getItem('recentPurchases');
+      if (storedPurchases) {
+        try {
+          setRecentPurchases(JSON.parse(storedPurchases));
+        } catch {
+          setRecentPurchases([]);
+        }
+      } else {
+        setRecentPurchases([]);
+      }
     }
-  ]);
+  }, []);
 
   const [showGoalModal, setShowGoalModal] = useState(false);
   const [newGoalTarget, setNewGoalTarget] = useState(5);

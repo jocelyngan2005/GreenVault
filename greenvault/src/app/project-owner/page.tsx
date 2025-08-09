@@ -3,13 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Navigation from '@/components/Navigation';
-import { 
-  useRegisterProject, 
-  useMintCarbonCredit, 
-  useListCarbonCredit,
-  useMarketplaceStats,
-  useUserCredits
-} from '@/lib/useSmartContract';
+import { smartContractService } from '@/lib/smartContractService';
 import { getTestUserAddress, shortenAddress, generateMockSuiObjectId } from '@/lib/suiUtils';
 
 interface Project {
@@ -27,15 +21,29 @@ interface Project {
 }
 
 export default function ProjectOwnerDashboard() {
-  // Smart contract hooks
-  const { execute: registerProject, loading: registerLoading } = useRegisterProject();
-  const { execute: mintCredit, loading: mintLoading } = useMintCarbonCredit();
-  const { execute: listCredit, loading: listLoading } = useListCarbonCredit();
-  const { data: marketStats } = useMarketplaceStats();
+  // Loading states for different operations
+  const [mintLoading, setMintLoading] = useState(false);
+  const [listLoading, setListLoading] = useState(false);
   
   // Mock user address - in real app, get from wallet/auth
   const userAddress = getTestUserAddress();
-  const { data: userCredits, refetch: refetchCredits } = useUserCredits(userAddress);
+  const [userCredits, setUserCredits] = useState<any>(null);
+  
+  // Fetch user credits
+  const fetchUserCredits = async () => {
+    try {
+      const result = await smartContractService.getUserCredits(userAddress);
+      if (result.success) {
+        setUserCredits(result.data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch user credits:', error);
+    }
+  };
+
+  useEffect(() => {
+    fetchUserCredits();
+  }, [userAddress]);
 
   const [projects, setProjects] = useState<Project[]>([]);
   // Load projects from localStorage on mount
@@ -58,6 +66,7 @@ export default function ProjectOwnerDashboard() {
   // Handle NFT minting for verified projects
   const handleMintNFT = async (project: Project) => {
     console.log('[handleMintNFT] Called for project:', project);
+    setMintLoading(true);
     try {
       const creditData = {
         projectId: project.id,
@@ -69,26 +78,26 @@ export default function ProjectOwnerDashboard() {
         co2DataHash: `hash_${project.id}_${Date.now()}`,
       };
 
-      console.log('[handleMintNFT] About to call mintCredit with:', creditData);
-      const result = await mintCredit(creditData);
+      console.log('[handleMintNFT] About to call smartContractService.mintCarbonCredit with:', creditData);
+      const result = await smartContractService.mintCarbonCredit(creditData);
       console.log('[handleMintNFT] Mint result:', result);
 
       // Try to extract the real credit object id from result.objectChanges
       let creditObjectId = undefined;
       console.log('[handleMintNFT] Full result object:', JSON.stringify(result, null, 2));
       
-      if (result.success && Array.isArray(result.objectChanges)) {
+      if (result.success && result.objectChanges && Array.isArray(result.objectChanges)) {
         console.log('[handleMintNFT] ObjectChanges array:', result.objectChanges);
         
         // Look for created objects
-        const createdObjects = result.objectChanges.filter(obj => 
+        const createdObjects = result.objectChanges.filter((obj: any) => 
           obj.type === 'created' || 
           (obj.objectChange && obj.objectChange.type === 'created')
         );
         console.log('[handleMintNFT] Created objects:', createdObjects);
         
         // Find the carbon credit object
-        const carbonCreditObject = result.objectChanges.find(obj => {
+        const carbonCreditObject = result.objectChanges.find((obj: any) => {
           // Check different possible structures
           const objectType = obj.objectType || obj.type || 
             (obj.objectChange && obj.objectChange.objectType);
@@ -117,13 +126,13 @@ export default function ProjectOwnerDashboard() {
       if (result.success) {
         setNotification({
           type: 'success',
-          message: `NFT minted successfully! TX: ${result.txDigest?.slice(0, 10)}...`
+          message: `NFT minted successfully on blockchain! TX: ${result.txDigest?.slice(0, 10)}...`
         });
         // Update project status, store creditObjectId, and persist
         updateProjects(projects.map(p =>
           p.id === project.id ? { ...p, nftMinted: true, creditObjectId } : p
         ));
-        refetchCredits();
+        await fetchUserCredits(); // Refresh user credits
       } else {
         setNotification({
           type: 'error',
@@ -136,11 +145,14 @@ export default function ProjectOwnerDashboard() {
         type: 'error',
         message: 'Minting failed. Please try again.'
       });
+    } finally {
+      setMintLoading(false);
     }
   };
 
   // Handle listing credit for sale
   const handleListCredit = async (project: Project) => {
+    setListLoading(true);
     try {
       // Use the real credit object ID from the project
       const creditId = project.creditObjectId;
@@ -153,12 +165,16 @@ export default function ProjectOwnerDashboard() {
       }
       const price = Math.floor(project.co2Amount * 20 * 1000000000); // Price in mist units
 
-      const result = await listCredit(creditId, price, false);
+      const result = await smartContractService.listCreditForSale({
+        creditId,
+        price,
+        reservedForCommunity: false
+      });
 
       if (result.success) {
         setNotification({
           type: 'success',
-          message: `Credit listed for sale! TX: ${result.txDigest?.slice(0, 10)}...`
+          message: `Credit listed for sale on blockchain! TX: ${result.txDigest?.slice(0, 10)}...`
         });
         // Update project status and persist
         updateProjects(projects.map(p =>
@@ -175,6 +191,8 @@ export default function ProjectOwnerDashboard() {
         type: 'error',
         message: 'Listing failed. Please try again.'
       });
+    } finally {
+      setListLoading(false);
     }
   };
 
@@ -220,14 +238,12 @@ export default function ProjectOwnerDashboard() {
           <h1 className="text-3xl font-bold mb-2">Project Owner Dashboard</h1>
           <p className="text-gray-600">Manage your carbon offset projects and track your environmental impact.</p>
           
-          {/* Smart Contract Stats */}
-          {marketStats && (
-            <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded">
-              <p className="text-sm text-blue-800">
-                Connected to blockchain. Your credits: {userCredits?.credits?.length || 0}
-              </p>
-            </div>
-          )}
+          {/* Smart Contract Connection Status */}
+          <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded">
+            <p className="text-sm text-blue-800">
+              Connected to blockchain. Your credits: {userCredits?.credits?.length || 0}
+            </p>
+          </div>
         </div>
 
         {/* Stats Overview */}

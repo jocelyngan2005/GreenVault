@@ -55,29 +55,27 @@ export default function CreditBuyerCart() {
     setIsProcessing(true);
     let anyError = false;
     let errorMsg = '';
-    
+
     // Helper function to convert UUID to Sui object ID format
     const convertToSuiObjectId = (uuid: string): string => {
-      // Remove hyphens and ensure it's 32 characters (64 hex chars)
       const cleanId = uuid.replace(/-/g, '');
-      // Pad with zeros if needed and ensure it starts with 0x
       const paddedId = cleanId.padStart(64, '0');
       return '0x' + paddedId;
     };
-    
+
+    // Prepare to collect purchased NFTs and purchases
+    const purchasedNFTs: any[] = [];
+    const purchases: any[] = [];
+
     for (const item of cartItems) {
       try {
-        // Convert UUID to Sui object ID format
         const suiObjectId = convertToSuiObjectId(item.id);
-        
-        // Call smart contract buy for each item
         const result = await smartContractService.buyCarbonCredit({
           creditId: suiObjectId,
           paymentAmount: item.totalPrice
         });
         if (!result.success) {
           anyError = true;
-          // Provide more helpful error messages for common development issues
           if (result.error?.includes('E_INVALID_PROJECT') || result.error?.includes('MoveAbort') || result.error?.includes('error code 5')) {
             errorMsg = `Credit ${item.projectName} is not available for purchase. This might be because the credit needs to be listed for sale first in the marketplace.`;
           } else {
@@ -85,6 +83,52 @@ export default function CreditBuyerCart() {
           }
           break;
         }
+        // Use the real Sui object ID from the transaction events if available
+        let realObjectId = suiObjectId;
+        
+        // For real transactions (not mock), try to extract the actual object ID
+        if (result.success && !result.data?.note?.includes('mock')) {
+          if (result.events && Array.isArray(result.events)) {
+            // Try to find a created object event
+            const created = result.events.find((ev: any) => ev.type === 'newObject' && ev.objectId);
+            if (created && created.objectId) {
+              realObjectId = created.objectId;
+            } else {
+              // Try to find in objectChanges
+              if (result.objectChanges && Array.isArray(result.objectChanges)) {
+                const objChange = result.objectChanges.find((oc: any) => oc.objectType && oc.objectId && oc.objectType.includes('CarbonCredit'));
+                if (objChange && objChange.objectId) {
+                  realObjectId = objChange.objectId;
+                }
+              }
+            }
+          }
+        }
+        // For mock transactions, keep the mock object ID so it can be properly handled
+        purchasedNFTs.push({
+          id: realObjectId,
+          projectName: item.projectName,
+          co2Amount: item.co2Amount,
+          origin: item.location,
+          status: 'active',
+          datePurchased: new Date().toISOString(),
+          nftCount: item.quantity,
+          projectType: item.projectType,
+          verification: item.verified ? 'Verified' : 'Unverified',
+          region: item.region || '',
+          expiryDate: item.expiryDate || undefined,
+          retiredDate: undefined,
+          purchasePrice: item.pricePerTon,
+          currentValue: item.pricePerTon,
+        });
+        purchases.push({
+          id: realObjectId,
+          projectName: item.projectName,
+          amount: item.co2Amount * item.quantity,
+          price: item.pricePerTon,
+          date: new Date().toISOString(),
+          status: 'completed',
+        });
       } catch (e) {
         anyError = true;
         const errorStr = e instanceof Error ? e.message : 'Unknown error';
@@ -101,6 +145,28 @@ export default function CreditBuyerCart() {
       setIsProcessing(false);
       return;
     }
+
+    // Save purchased NFTs to localStorage
+    if (typeof window !== 'undefined') {
+      // Merge with existing purchasedNFTs
+      const existingNFTs = localStorage.getItem('purchasedNFTs');
+      let nftsArr = [];
+      if (existingNFTs) {
+        try { nftsArr = JSON.parse(existingNFTs); } catch { nftsArr = []; }
+      }
+      nftsArr = [...nftsArr, ...purchasedNFTs];
+      localStorage.setItem('purchasedNFTs', JSON.stringify(nftsArr));
+
+      // Merge with existing recentPurchases
+      const existingPurchases = localStorage.getItem('recentPurchases');
+      let purchasesArr = [];
+      if (existingPurchases) {
+        try { purchasesArr = JSON.parse(existingPurchases); } catch { purchasesArr = []; }
+      }
+      purchasesArr = [...purchasesArr, ...purchases];
+      localStorage.setItem('recentPurchases', JSON.stringify(purchasesArr));
+    }
+
     alert('Purchase successful! Your carbon credits have been added to your portfolio.');
     clearCart();
     setIsProcessing(false);

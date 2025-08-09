@@ -93,7 +93,7 @@ export default function Navigation({ children, theme = 'light' }: NavigationProp
       return [
         { href: '/project-owner', label: 'Dashboard' },
         { href: '/project-owner/marketplace', label: 'Marketplace' },
-        ...baseItems.slice(1) // Skip general marketplace, use project-owner specific
+        { href: '/project-owner/assets', label: 'My Assets' },
       ];
     } else if (userRole === 'credit-buyer') {
       return [

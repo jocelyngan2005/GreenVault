@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRegisterProject } from '@/lib/useSmartContract';
+import { smartContractService } from '@/lib/smartContractService';
 import { v4 as uuidv4 } from 'uuid'; // npm install uuid
 import Navigation from '@/components/Navigation';
 
@@ -63,8 +63,9 @@ export default function NewProjectPage() {
     'Other (specify in description)'
   ];
 
-  // Smart contract hook
-  const { execute, loading, error, data } = useRegisterProject();
+  // Smart contract state
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setFormData({
@@ -97,6 +98,8 @@ export default function NewProjectPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
+    setIsLoading(true);
+    setError(null);
 
     // Generate a unique projectId
     const projectId = uuidv4();
@@ -115,8 +118,10 @@ export default function NewProjectPage() {
     };
 
     try {
-      const result = await execute(contractData /*, privateKey if needed */);
+      const result = await smartContractService.registerProject(contractData);
       setIsSubmitting(false);
+      setIsLoading(false);
+      
       if (result.success) {
         // Save to localStorage for dashboard display
         const stored = localStorage.getItem('projects');
@@ -135,14 +140,15 @@ export default function NewProjectPage() {
         };
         projects.push(newProject);
         localStorage.setItem('projects', JSON.stringify(projects));
-        alert('Project registered successfully! Tx: ' + result.txDigest);
+        alert('Project registered successfully on blockchain! Tx: ' + result.txDigest);
         window.location.href = '/project-owner';
       } else {
-        alert('Registration failed: ' + (result.error || 'Unknown error'));
+        setError('Registration failed: ' + (result.error || 'Unknown error'));
       }
     } catch (err: any) {
       setIsSubmitting(false);
-      alert('Registration failed: ' + (err?.message || 'Unknown error'));
+      setIsLoading(false);
+      setError('Registration failed: ' + (err?.message || 'Unknown error'));
     }
   };
 
@@ -414,9 +420,9 @@ export default function NewProjectPage() {
             <button
               type="button"
               onClick={prevStep}
-              disabled={currentStep === 1 || isSubmitting || loading}
+              disabled={currentStep === 1 || isSubmitting || isLoading}
               className={`px-6 py-3 border border-black ${
-                currentStep === 1 || isSubmitting || loading
+                currentStep === 1 || isSubmitting || isLoading
                   ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                   : 'bg-white text-black hover:bg-black hover:text-white'
               } transition-colors`}
@@ -428,18 +434,18 @@ export default function NewProjectPage() {
               <button
                 type="button"
                 onClick={nextStep}
-                disabled={isSubmitting || loading}
-                className={`px-6 py-3 border border-black bg-green-600 text-white hover:bg-green-700 transition-colors ${isSubmitting || loading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                disabled={isSubmitting || isLoading}
+                className={`px-6 py-3 border border-black bg-green-600 text-white hover:bg-green-700 transition-colors ${isSubmitting || isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
                 Next
               </button>
             ) : (
               <button
                 type="submit"
-                disabled={isSubmitting || loading}
-                className={`px-6 py-3 border border-black bg-green-600 text-white hover:bg-green-700 transition-colors ${isSubmitting || loading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                disabled={isSubmitting || isLoading}
+                className={`px-6 py-3 border border-black bg-green-600 text-white hover:bg-green-700 transition-colors ${isSubmitting || isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
-                {isSubmitting || loading ? 'Registering...' : 'Register Project'}
+                {isSubmitting || isLoading ? 'Registering...' : 'Register Project'}
               </button>
             )}
           </div>
