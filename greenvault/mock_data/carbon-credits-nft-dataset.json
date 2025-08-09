@@ -1,0 +1,124 @@
+{
+  "carbonCreditNFTs": [
+    {
+      "id": "nft_001",
+      "name": "Amazon Rainforest Conservation Project",
+      "pricePerTon": 25,
+      "location": "Brazil",
+      "category": "forest_conservation",
+      "description": "Protecting 10,000 hectares of Amazon rainforest through indigenous community partnerships",
+      "co2OffsetPerYear": 1500,
+      "verificationStandard": "VCS",
+      "totalSupply": 100,
+      "availableSupply": 75
+    },
+    {
+      "id": "nft_002",
+      "name": "Solar Farm Initiative Kenya",
+      "pricePerTon": 18,
+      "location": "Kenya",
+      "category": "renewable_energy",
+      "description": "Community-owned solar farm providing clean energy to rural areas",
+      "co2OffsetPerYear": 2000,
+      "verificationStandard": "Gold Standard",
+      "totalSupply": 80,
+      "availableSupply": 32
+    },
+    {
+      "id": "nft_003",
+      "name": "Mangrove Restoration Philippines",
+      "pricePerTon": 22,
+      "location": "Philippines",
+      "category": "ecosystem_restoration",
+      "description": "Coastal mangrove restoration supporting local fishing communities",
+      "co2OffsetPerYear": 1200,
+      "verificationStandard": "VCS",
+      "totalSupply": 120,
+      "availableSupply": 60
+    },
+    {
+      "id": "nft_004",
+      "name": "Clean Cooking Stoves Uganda",
+      "pricePerTon": 12,
+      "location": "Uganda",
+      "category": "clean_cooking",
+      "description": "Efficient cookstoves reducing deforestation and improving health",
+      "co2OffsetPerYear": 800,
+      "verificationStandard": "Gold Standard",
+      "totalSupply": 200,
+      "availableSupply": 150
+    },
+    {
+      "id": "nft_005",
+      "name": "Wind Farm Development India",
+      "pricePerTon": 20,
+      "location": "India",
+      "category": "renewable_energy",
+      "description": "Large-scale wind energy project powering industrial zones",
+      "co2OffsetPerYear": 3000,
+      "verificationStandard": "CDM",
+      "totalSupply": 150,
+      "availableSupply": 90
+    },
+    {
+      "id": "nft_006",
+      "name": "Reforestation Project Indonesia",
+      "pricePerTon": 16,
+      "location": "Indonesia",
+      "category": "forest_conservation",
+      "description": "Restoring degraded peatlands and preventing forest fires",
+      "co2OffsetPerYear": 2200,
+      "verificationStandard": "VCS",
+      "totalSupply": 300,
+      "availableSupply": 220
+    },
+    {
+      "id": "nft_007",
+      "name": "Biogas Production Vietnam",
+      "pricePerTon": 14,
+      "location": "Vietnam",
+      "category": "waste_management",
+      "description": "Converting agricultural waste to clean energy",
+      "co2OffsetPerYear": 900,
+      "verificationStandard": "Gold Standard",
+      "totalSupply": 180,
+      "availableSupply": 120
+    },
+    {
+      "id": "nft_008",
+      "name": "Hydroelectric Project Costa Rica",
+      "pricePerTon": 28,
+      "location": "Costa Rica",
+      "category": "renewable_energy",
+      "description": "Small-scale run-of-river hydroelectric plant",
+      "co2OffsetPerYear": 1800,
+      "verificationStandard": "Gold Standard",
+      "totalSupply": 90,
+      "availableSupply": 45
+    },
+    {
+      "id": "nft_009",
+      "name": "Sustainable Agriculture Mexico",
+      "pricePerTon": 19,
+      "location": "Mexico",
+      "category": "agriculture",
+      "description": "Organic farming practices and soil carbon sequestration",
+      "co2OffsetPerYear": 1100,
+      "verificationStandard": "VCS",
+      "totalSupply": 250,
+      "availableSupply": 180
+    },
+    {
+      "id": "nft_010",
+      "name": "Ocean Carbon Capture Norway",
+      "pricePerTon": 35,
+      "location": "Norway",
+      "category": "ocean_conservation",
+      "description": "Marine ecosystem restoration and blue carbon projects",
+      "co2OffsetPerYear": 2500,
+      "verificationStandard": "Plan Vivo",
+      "totalSupply": 60,
+      "availableSupply": 30
+    }
+  ]
+}

@@ -133,7 +133,7 @@ export default function MarketplacePage() {
             </div>
             <select className="w-full border border-black px-3 py-2 mb-4 bg-white text-black focus:outline-none focus:ring-1 focus:ring-black">
               {projectTypes.slice(1).map(type => (
-                <option key={type} value={type}>{type}</option>
+                <option key={`select-${type}`} value={type}>{type}</option>
               ))}
             </select>
             <textarea
