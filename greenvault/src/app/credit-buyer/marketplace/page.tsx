@@ -133,135 +133,199 @@ export default function CreditBuyerMarketplace() {
   const [projectNFTs, setProjectNFTs] = useState<ProjectNFT[]>([]);
 
   useEffect(() => {
-    // Get hardcoded demo projects
-    const demoProjects: ProjectNFT[] = [
-      {
-        id: '1',
-        projectName: 'Amazon Rainforest Conservation',
-        owner: 'Indigenous Community Brazil',
-        realWorldCO2Impact: 1500,
-        priceInCredits: 25,
-        minimumStake: 5,
-        location: 'Brazil',
-        projectType: 'Forest Conservation',
-        description: 'Supporting indigenous communities in preserving 10,000 hectares of rainforest',
-        totalNFTs: 100,
-        availableNFTs: 75,
-        verified: true,
-        verificationDate: '2024-12-15',
-        images: [],
-        status: 'listed',
-        impactMetrics: {
-          communitiesBenefited: 5,
-          jobsCreated: 120,
-          biodiversityScore: 95
+    async function loadProjects() {
+      // Get hardcoded demo projects
+      const demoProjects: ProjectNFT[] = [
+        {
+          id: 'demo-1',
+          projectName: 'Amazon Rainforest Conservation',
+          owner: 'Indigenous Community Brazil',
+          realWorldCO2Impact: 1500,
+          priceInCredits: 25,
+          minimumStake: 5,
+          location: 'Brazil',
+          projectType: 'Forest Conservation',
+          description: 'Supporting indigenous communities in preserving 10,000 hectares of rainforest',
+          totalNFTs: 100,
+          availableNFTs: 75,
+          verified: true,
+          verificationDate: '2024-12-15',
+          images: [],
+          status: 'listed',
+          impactMetrics: {
+            communitiesBenefited: 5,
+            jobsCreated: 120,
+            biodiversityScore: 95
+          },
+          stakingRewards: {
+            expectedAnnualReturn: 8,
+            stakingPeriod: '12 months',
+            totalStaked: 625
+          }
         },
-        stakingRewards: {
-          expectedAnnualReturn: 8,
-          stakingPeriod: '12 months',
-          totalStaked: 625
-        }
-      },
-      {
-        id: '2',
-        projectName: 'Solar Farm Initiative',
-        owner: 'Community Solar Kenya',
-        realWorldCO2Impact: 2000,
-        priceInCredits: 18,
-        minimumStake: 3,
-        location: 'Kenya',
-        projectType: 'Renewable Energy',
-        description: 'Clean energy generation providing power to rural communities',
-        totalNFTs: 80,
-        availableNFTs: 32,
-        verified: true,
-        verificationDate: '2025-01-05',
-        images: [],
-        status: 'listed',
-        impactMetrics: {
-          communitiesBenefited: 8,
-          jobsCreated: 75,
-          biodiversityScore: 60
+        {
+          id: 'demo-2',
+          projectName: 'Solar Farm Initiative',
+          owner: 'Community Solar Kenya',
+          realWorldCO2Impact: 2000,
+          priceInCredits: 18,
+          minimumStake: 3,
+          location: 'Kenya',
+          projectType: 'Renewable Energy',
+          description: 'Clean energy generation providing power to rural communities',
+          totalNFTs: 80,
+          availableNFTs: 32,
+          verified: true,
+          verificationDate: '2025-01-05',
+          images: [],
+          status: 'listed',
+          impactMetrics: {
+            communitiesBenefited: 8,
+            jobsCreated: 75,
+            biodiversityScore: 60
+          },
+          stakingRewards: {
+            expectedAnnualReturn: 6,
+            stakingPeriod: '18 months',
+            totalStaked: 864
+          }
         },
-        stakingRewards: {
-          expectedAnnualReturn: 6,
-          stakingPeriod: '18 months',
-          totalStaked: 864
+        {
+          id: 'demo-3',
+          projectName: 'Mangrove Restoration',
+          owner: 'Coastal Communities Phil',
+          realWorldCO2Impact: 1200,
+          priceInCredits: 22,
+          minimumStake: 4,
+          location: 'Philippines',
+          projectType: 'Ecosystem Restoration',
+          description: 'Coastal ecosystem restoration and community livelihood support',
+          totalNFTs: 120,
+          availableNFTs: 60,
+          verified: true,
+          verificationDate: '2024-11-20',
+          images: [],
+          status: 'listed',
+          impactMetrics: {
+            communitiesBenefited: 12,
+            jobsCreated: 200,
+            biodiversityScore: 88
+          },
+          stakingRewards: {
+            expectedAnnualReturn: 7,
+            stakingPeriod: '15 months',
+            totalStaked: 1320
+          }
         }
-      },
-      {
-        id: '3',
-        projectName: 'Mangrove Restoration',
-        owner: 'Coastal Communities Phil',
-        realWorldCO2Impact: 1200,
-        priceInCredits: 22,
-        minimumStake: 4,
-        location: 'Philippines',
-        projectType: 'Ecosystem Restoration',
-        description: 'Coastal ecosystem restoration and community livelihood support',
-        totalNFTs: 120,
-        availableNFTs: 60,
-        verified: true,
-        verificationDate: '2024-11-20',
-        images: [],
-        status: 'listed',
-        impactMetrics: {
-          communitiesBenefited: 12,
-          jobsCreated: 200,
-          biodiversityScore: 88
-        },
-        stakingRewards: {
-          expectedAnnualReturn: 7,
-          stakingPeriod: '15 months',
-          totalStaked: 1320
-        }
-      }
-    ];
+      ];
 
-    // Load project owner projects from localStorage
-    let listedProjects: ProjectNFT[] = [];
-    if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('projects');
-      if (stored) {
-        try {
-          const parsed = JSON.parse(stored);
-          listedProjects = parsed
-            .filter((p: any) => p.status === 'listed')
-            .map((p: any) => ({
-              id: p.id,
-              projectName: p.name,
-              owner: p.owner || 'Project Owner',
-              realWorldCO2Impact: p.co2Amount,
-              priceInCredits: p.pricePerTon || 20,
-              minimumStake: 1,
-              location: p.location,
-              projectType: p.type,
-              description: p.description || '',
-              totalNFTs: p.totalSupply || p.co2Amount || 0,
-              availableNFTs: p.availableNFTs || 1,
-              verified: true,
-              verificationDate: p.createdDate || '',
-              images: [],
-              status: 'listed',
-              impactMetrics: {
-                communitiesBenefited: p.communitiesBenefited || 0,
-                jobsCreated: p.jobsCreated || 0,
-                biodiversityScore: p.biodiversityScore || 0
-              },
-              stakingRewards: {
-                expectedAnnualReturn: p.annualReturns || 0,
-                stakingPeriod: '12 months',
-                totalStaked: p.stakingValue || 0
-              }
-            }));
-        } catch (e) {
-          // ignore
+      // Load blockchain projects from API
+      let blockchainProjects: ProjectNFT[] = [];
+      try {
+        console.log('Marketplace - Loading blockchain projects from API...');
+        const availableResponse = await smartContractService.getAvailableCredits();
+        console.log('Marketplace - getAvailableCredits response:', availableResponse);
+        
+        if (availableResponse.success && Array.isArray(availableResponse.data)) {
+          blockchainProjects = availableResponse.data.map((credit: any) => ({
+            id: credit.id || credit.object_id || `blockchain_${Date.now()}_${Math.random()}`,
+            projectName: credit.project_name || credit.name || 'Blockchain Project',
+            owner: credit.owner_address ? `${credit.owner_address.slice(0, 6)}...${credit.owner_address.slice(-4)}` : 'Project Owner',
+            realWorldCO2Impact: credit.credit_amount || credit.quantity || credit.co2_impact || 100,
+            priceInCredits: credit.price_per_credit || credit.price || Math.floor((credit.credit_amount || 100) * 0.2),
+            minimumStake: credit.minimum_stake || 1,
+            location: credit.location || 'Unknown',
+            projectType: credit.project_type || credit.methodology || credit.category || 'Unknown',
+            description: credit.description || credit.project_description || `Available carbon credit: ${credit.project_name || 'Verified project'}`,
+            totalNFTs: credit.total_supply || credit.credit_amount || credit.available_credits || 100,
+            availableNFTs: credit.available_amount || credit.available_credits || credit.credit_amount || 100,
+            verified: credit.verification_status === 'verified' || credit.verified === true || credit.is_verified === true,
+            verificationDate: credit.verification_date || credit.created_at || credit.timestamp || new Date().toISOString().slice(0, 10),
+            images: credit.images || credit.image_urls || [],
+            status: (credit.status === 'listed' || credit.status === 'unlisted' || credit.status === 'sold') ? credit.status : 'listed',
+            impactMetrics: {
+              communitiesBenefited: credit.communities_benefited || credit.impact_metrics?.communities || Math.floor(Math.random() * 15) + 5,
+              jobsCreated: credit.jobs_created || credit.impact_metrics?.jobs || Math.floor(Math.random() * 100) + 50,
+              biodiversityScore: credit.biodiversity_score || credit.impact_metrics?.biodiversity || Math.floor(Math.random() * 40) + 60
+            },
+            stakingRewards: {
+              expectedAnnualReturn: credit.expected_return || credit.annual_return || Math.floor(Math.random() * 5) + 5,
+              stakingPeriod: credit.staking_period || credit.lock_period || '12 months',
+              totalStaked: credit.total_staked || credit.staked_amount || Math.floor(Math.random() * 1000) + 500
+            }
+          }));
+          
+          console.log('Marketplace - Blockchain projects loaded:', blockchainProjects.length);
+        } else {
+          console.log('Marketplace - No blockchain projects found or error:', availableResponse.error);
+        }
+      } catch (error) {
+        console.error('Marketplace - Failed to load blockchain projects:', error);
+      }
+
+      // Load project owner projects from localStorage (legacy)
+      let localStorageProjects: ProjectNFT[] = [];
+      if (typeof window !== 'undefined') {
+        const stored = localStorage.getItem('projects');
+        if (stored) {
+          try {
+            const parsed = JSON.parse(stored);
+            localStorageProjects = parsed
+              .filter((p: any) => p.status === 'listed')
+              .map((p: any) => ({
+                id: p.id,
+                projectName: p.name,
+                owner: p.owner || 'Project Owner',
+                realWorldCO2Impact: p.co2Amount,
+                priceInCredits: p.pricePerTon || 20,
+                minimumStake: 1,
+                location: p.location,
+                projectType: p.type,
+                description: p.description || '',
+                totalNFTs: p.totalSupply || p.co2Amount || 0,
+                availableNFTs: p.availableNFTs || 1,
+                verified: true,
+                verificationDate: p.createdDate || '',
+                images: [],
+                status: 'listed',
+                impactMetrics: {
+                  communitiesBenefited: p.communitiesBenefited || 0,
+                  jobsCreated: p.jobsCreated || 0,
+                  biodiversityScore: p.biodiversityScore || 0
+                },
+                stakingRewards: {
+                  expectedAnnualReturn: p.annualReturns || 0,
+                  stakingPeriod: '12 months',
+                  totalStaked: p.stakingValue || 0
+                }
+              }));
+          } catch (e) {
+            console.error('Error parsing localStorage projects:', e);
+          }
         }
       }
+
+      // Combine all projects: demo + blockchain + localStorage (avoid duplicates by id)
+      const allProjects = [
+        ...demoProjects,
+        ...blockchainProjects.filter(bp => !demoProjects.some(dp => dp.id === bp.id)),
+        ...localStorageProjects.filter(lp => 
+          !demoProjects.some(dp => dp.id === lp.id) && 
+          !blockchainProjects.some(bp => bp.id === lp.id)
+        )
+      ];
+
+      console.log('Marketplace - Final project counts:', {
+        demo: demoProjects.length,
+        blockchain: blockchainProjects.length,
+        localStorage: localStorageProjects.length,
+        total: allProjects.length
+      });
+
+      setProjectNFTs(allProjects);
     }
-    // Merge and deduplicate by id (localStorage takes precedence)
-    const merged = [...listedProjects, ...demoProjects.filter(d => !listedProjects.some(p => p.id === d.id))];
-    setProjectNFTs(merged);
+
+    loadProjects();
   }, []);
 
   const [selectedType, setSelectedType] = useState('All');
@@ -367,73 +431,6 @@ export default function CreditBuyerMarketplace() {
               showFullAddress={true}
               className="h-fit mb-4"
             />
-          </div>
-
-          {/* Carbon Credit Balance Display */}
-          <div className="mt-4 p-4 bg-green-100 rounded-lg">
-            <h3 className="font-semibold text-green-800 mb-2">Your Carbon Credit Wallet</h3>
-            {(!userAddress || userAddress === '' || userAddress === (process.env.NEXT_PUBLIC_USER_ADDRESS || process.env.SUI_ADDRESS || '')) ? (
-              <button
-                className="bg-black text-white px-4 py-2 rounded mb-4 hover:bg-gray-800"
-                onClick={() => {
-                  // Simulate wallet connect: prompt for address or use env default
-                  const defaultAddr = process.env.NEXT_PUBLIC_USER_ADDRESS || process.env.SUI_ADDRESS || '';
-                  const addr = prompt('Enter your Sui wallet address:', defaultAddr);
-                  if (addr && addr.startsWith('0x') && addr.length >= 42) {
-                    localStorage.setItem('userAddress', addr);
-                    setUserAddress(addr);
-                  } else {
-                    alert('Invalid address. Please enter a valid Sui address.');
-                  }
-                }}
-              >
-                Connect Wallet
-              </button>
-            ) : null}
-            {loadingBalance ? (
-              <div className="text-gray-600">Loading balance...</div>
-            ) : balanceError ? (
-              <div className="text-red-600">{balanceError}</div>
-            ) : userBalance ? (
-              <>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div title="Credits you can use to buy or retire NFTs.">
-                    <p className="text-sm text-gray-600 flex items-center gap-1">Available Credits
-                      <span className="ml-1" title="Credits you can use to buy or retire NFTs.">🛈</span>
-                    </p>
-                    <p className="text-2xl font-bold text-green-700">{typeof userBalance.availableCredits === 'number' ? userBalance.availableCredits.toLocaleString() : '0'}</p>
-                  </div>
-                  <div title="Credits currently locked in ongoing transactions or staking.">
-                    <p className="text-sm text-gray-600 flex items-center gap-1">Locked Credits
-                      <span className="ml-1" title="Credits currently locked in ongoing transactions or staking.">🛈</span>
-                    </p>
-                    <p className="text-2xl font-bold text-blue-700">{typeof userBalance.lockedCredits === 'number' ? userBalance.lockedCredits.toLocaleString() : '0'}</p>
-                  </div>
-                  <div title="Total credits in your wallet (available + locked)">
-                    <p className="text-sm text-gray-600 flex items-center gap-1">Total Credits
-                      <span className="ml-1" title="Total credits in your wallet (available + locked)">🛈</span>
-                    </p>
-                    <p className="text-2xl font-bold text-gray-700">{typeof userBalance.totalCredits === 'number' ? userBalance.totalCredits.toLocaleString() : '0'}</p>
-                  </div>
-                </div>
-
-                {userBalance.creditTypes && (
-                  <div className="mt-4">
-                    <h4 className="font-semibold text-sm mb-2">By Project Type</h4>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                      {Object.entries(userBalance.creditTypes).map(([type, amount]) => (
-                        <div key={type} className="bg-white border border-gray-200 rounded p-2 text-xs flex justify-between">
-                          <span className="capitalize">{type.replace(/([A-Z])/g, ' $1').toLowerCase()}</span>
-                          <span className="font-semibold">{amount}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </>
-            ) : (
-              <div className="text-gray-600">No balance data found.</div>
-            )}
           </div>
         </div>
 
