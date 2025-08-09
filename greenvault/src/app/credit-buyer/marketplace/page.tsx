@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { smartContractService } from '@/lib/smartContractService';
 import Link from 'next/link';
 import Navigation from '@/components/Navigation';
 import { cartUtils } from '@/lib/cartUtils';
@@ -48,20 +49,57 @@ interface CarbonCredit {
 }
 
 export default function CreditBuyerMarketplace() {
-  // User's carbon credit balance (replaces USD wallet)
-  const [userBalance, setUserBalance] = useState<CarbonCreditBalance>({
-    totalCredits: 150,
-    availableCredits: 120,
-    lockedCredits: 30,
-    creditTypes: {
-      forestConservation: 50,
-      renewableEnergy: 40,
-      ecosystemRestoration: 30,
-      cleanCooking: 15,
-      agriculture: 10,
-      wasteManagement: 5
+  // User's carbon credit balance (real, fetched from smart contract)
+  const [userBalance, setUserBalance] = useState<CarbonCreditBalance | null>(null);
+  const [loadingBalance, setLoadingBalance] = useState(true);
+  const [balanceError, setBalanceError] = useState<string | null>(null);
+
+  // Replace with real user address (from wallet or session)
+  const [userAddress, setUserAddress] = useState<string>('');
+
+  // On mount, get user address from localStorage or env
+  useEffect(() => {
+    let addr = '';
+    if (typeof window !== 'undefined') {
+      addr = localStorage.getItem('userAddress') || '';
     }
-  });
+    if (!addr) {
+      // Only use env variable, never hardcode the address
+      addr = process.env.NEXT_PUBLIC_USER_ADDRESS || process.env.SUI_ADDRESS || '';
+    }
+    setUserAddress(addr);
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+    async function fetchBalance() {
+      setLoadingBalance(true);
+      setBalanceError(null);
+      try {
+        if (!userAddress) {
+          setBalanceError('No user address found. Please connect your wallet.');
+          setLoadingBalance(false);
+          return;
+        }
+        const res = await smartContractService.getUserCredits(userAddress);
+        if (isMounted) {
+          if (res.success && res.data) {
+            setUserBalance(res.data);
+          } else {
+            setBalanceError(res.error || 'Failed to fetch balance');
+          }
+          setLoadingBalance(false);
+        }
+      } catch (e: any) {
+        if (isMounted) {
+          setBalanceError(e.message || 'Error fetching balance');
+          setLoadingBalance(false);
+        }
+      }
+    }
+    fetchBalance();
+    return () => { isMounted = false; };
+  }, [userAddress]);
 
   // Load listed projects from localStorage and merge with hardcoded ones
   const [projectNFTs, setProjectNFTs] = useState<ProjectNFT[]>([]);
@@ -276,20 +314,70 @@ export default function CreditBuyerMarketplace() {
           {/* Carbon Credit Balance Display */}
           <div className="mt-4 p-4 bg-green-100 rounded-lg">
             <h3 className="font-semibold text-green-800 mb-2">Your Carbon Credit Wallet</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <p className="text-sm text-gray-600">Available Credits</p>
-                <p className="text-2xl font-bold text-green-700">{userBalance.availableCredits}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Locked Credits</p>
-                <p className="text-2xl font-bold text-blue-700">{userBalance.lockedCredits}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Total Credits</p>
-                <p className="text-2xl font-bold text-gray-700">{userBalance.totalCredits}</p>
-              </div>
-            </div>
+            {(!userAddress || userAddress === '' || userAddress === (process.env.NEXT_PUBLIC_USER_ADDRESS || process.env.SUI_ADDRESS || '')) ? (
+              <button
+                className="bg-black text-white px-4 py-2 rounded mb-4 hover:bg-gray-800"
+                onClick={() => {
+                  // Simulate wallet connect: prompt for address or use env default
+                  const defaultAddr = process.env.NEXT_PUBLIC_USER_ADDRESS || process.env.SUI_ADDRESS || '';
+                  const addr = prompt('Enter your Sui wallet address:', defaultAddr);
+                  if (addr && addr.startsWith('0x') && addr.length >= 42) {
+                    localStorage.setItem('userAddress', addr);
+                    setUserAddress(addr);
+                  } else {
+                    alert('Invalid address. Please enter a valid Sui address.');
+                  }
+                }}
+              >
+                Connect Wallet
+              </button>
+            ) : null}
+            {loadingBalance ? (
+              <div className="text-gray-600">Loading balance...</div>
+            ) : balanceError ? (
+              <div className="text-red-600">{balanceError}</div>
+            ) : userBalance ? (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div title="Credits you can use to buy or retire NFTs.">
+                    <p className="text-sm text-gray-600 flex items-center gap-1">Available Credits
+                      <span className="ml-1" title="Credits you can use to buy or retire NFTs.">🛈</span>
+                    </p>
+                    <p className="text-2xl font-bold text-green-700">{typeof userBalance.availableCredits === 'number' ? userBalance.availableCredits.toLocaleString() : '0'}</p>
+                  </div>
+                  <div title="Credits currently locked in ongoing transactions or staking.">
+                    <p className="text-sm text-gray-600 flex items-center gap-1">Locked Credits
+                      <span className="ml-1" title="Credits currently locked in ongoing transactions or staking.">🛈</span>
+                    </p>
+                    <p className="text-2xl font-bold text-blue-700">{typeof userBalance.lockedCredits === 'number' ? userBalance.lockedCredits.toLocaleString() : '0'}</p>
+                  </div>
+                  <div title="Total credits in your wallet (available + locked)">
+                    <p className="text-sm text-gray-600 flex items-center gap-1">Total Credits
+                      <span className="ml-1" title="Total credits in your wallet (available + locked)">🛈</span>
+                    </p>
+                    <p className="text-2xl font-bold text-gray-700">{typeof userBalance.totalCredits === 'number' ? userBalance.totalCredits.toLocaleString() : '0'}</p>
+                  </div>
+                </div>
+                <div className="mt-2 text-xs text-gray-500">
+                  <span className="font-semibold">Wallet Address:</span> {userAddress ? `${userAddress.slice(0, 8)}...${userAddress.slice(-6)}` : 'Not connected'}
+                </div>
+                {userBalance.creditTypes && (
+                  <div className="mt-4">
+                    <h4 className="font-semibold text-sm mb-2">By Project Type</h4>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                      {Object.entries(userBalance.creditTypes).map(([type, amount]) => (
+                        <div key={type} className="bg-white border border-gray-200 rounded p-2 text-xs flex justify-between">
+                          <span className="capitalize">{type.replace(/([A-Z])/g, ' $1').toLowerCase()}</span>
+                          <span className="font-semibold">{amount}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="text-gray-600">No balance data found.</div>
+            )}
           </div>
         </div>
 

@@ -226,8 +226,26 @@ export function generateMockSuiObjectId(identifier: string): string {
  * Check if an object ID is a mock/test ID
  */
 export function isMockObjectId(objectId: string): boolean {
-  return objectId.includes('credit_') || 
-         objectId.startsWith('0x00000000000000000000000000000000000000000000000000000000credit_') ||
-         objectId.includes('mock_') ||
-         (objectId.startsWith('0x') && objectId.length === 66 && objectId.endsWith('00000000'));
+  // Check for various mock/test patterns
+  if (objectId.includes('credit_') || 
+      objectId.startsWith('0x00000000000000000000000000000000000000000000000000000000credit_') ||
+      objectId.includes('mock_') ||
+      (objectId.startsWith('0x') && objectId.length === 66 && objectId.endsWith('00000000'))) {
+    return true;
+  }
+  
+  // Check if the object ID was likely created by converting a UUID
+  // UUIDs converted to Sui object IDs will start with many zeros
+  if (objectId.startsWith('0x') && objectId.length === 66) {
+    // Count leading zeros after 0x
+    const hexPart = objectId.slice(2);
+    const leadingZeros = hexPart.match(/^0*/)?.[0].length || 0;
+    
+    // If more than 24 leading zeros, it's likely a converted UUID or mock ID
+    if (leadingZeros > 24) {
+      return true;
+    }
+  }
+  
+  return false;
 }
