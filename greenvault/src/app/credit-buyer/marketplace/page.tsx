@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { smartContractService } from '@/lib/smartContractService';
 import Link from 'next/link';
 import Navigation from '@/components/Navigation';
 import WalletStatus from '@/components/WalletStatus';
@@ -23,6 +24,7 @@ interface ProjectNFT {
   verified: boolean;
   verificationDate: string;
   images: string[];
+  status?: 'listed' | 'unlisted' | 'sold'; // Add status for filtering
   impactMetrics: {
     communitiesBenefited: number;
     jobsCreated: number;
@@ -49,6 +51,14 @@ interface CarbonCredit {
 }
 
 export default function CreditBuyerMarketplace() {
+  // User's carbon credit balance (real, fetched from smart contract)
+  const [userBalance, setUserBalance] = useState<CarbonCreditBalance | null>(null);
+  const [loadingBalance, setLoadingBalance] = useState(true);
+  const [balanceError, setBalanceError] = useState<string | null>(null);
+
+  // Replace with real user address (from wallet or session)
+  const [userAddress, setUserAddress] = useState<string>('');
+
   // Load authenticated user data from localStorage/session (supports email & Google)
   const [currentUser, setCurrentUser] = useState<{ id: string; email: string; role?: string } | null>(null);
 
@@ -77,102 +87,181 @@ export default function CreditBuyerMarketplace() {
     autoRefresh: true,
     refreshInterval: 30000
   });
-
-  // User's carbon credit balance (replaces USD wallet)
-  const [userBalance, setUserBalance] = useState<CarbonCreditBalance>({
-    totalCredits: 150,          // User has 150 carbon credits
-    availableCredits: 120,      // 120 available for trading
-    lockedCredits: 30,          // 30 locked in current investments
-    creditTypes: {
-      forestConservation: 50,
-      renewableEnergy: 40,
-      ecosystemRestoration: 30,
-      cleanCooking: 15,
-      agriculture: 10,
-      wasteManagement: 5
+    
+  useEffect(() => {
+    let addr = '';
+    if (!addr) {
+      // Only use env variable, never hardcode the address
+      addr = process.env.NEXT_PUBLIC_USER_ADDRESS || process.env.SUI_ADDRESS || '';
     }
-  });
+    setUserAddress(addr);
+  }, []);
 
-  const [projectNFTs] = useState<ProjectNFT[]>([
-    {
-      id: '1',
-      projectName: 'Amazon Rainforest Conservation',
-      owner: 'Indigenous Community Brazil',
-      realWorldCO2Impact: 1500,  // This project offsets 1,500 tons CO2 annually
-      priceInCredits: 25,        // Costs 25 carbon credits per NFT
-      minimumStake: 5,           // Minimum 5 carbon credits to participate
-      location: 'Brazil',
-      projectType: 'Forest Conservation',
-      description: 'Supporting indigenous communities in preserving 10,000 hectares of rainforest',
-      totalNFTs: 100,            // 100 NFTs represent this project
-      availableNFTs: 75,         // 75 still available
-      verified: true,
-      verificationDate: '2024-12-15',
-      images: [],
-      impactMetrics: {
-        communitiesBenefited: 5,
-        jobsCreated: 120,
-        biodiversityScore: 95
-      },
-      stakingRewards: {
-        expectedAnnualReturn: 8,  // 8 carbon credits per year return
-        stakingPeriod: '12 months',
-        totalStaked: 625          // 625 carbon credits currently staked by all users
-      }
-    },
-    {
-      id: '2',
-      projectName: 'Solar Farm Initiative',
-      owner: 'Community Solar Kenya',
-      realWorldCO2Impact: 2000,
-      priceInCredits: 18,
-      minimumStake: 3,
-      location: 'Kenya',
-      projectType: 'Renewable Energy',
-      description: 'Clean energy generation providing power to rural communities',
-      totalNFTs: 80,
-      availableNFTs: 32,
-      verified: true,
-      verificationDate: '2025-01-05',
-      images: [],
-      impactMetrics: {
-        communitiesBenefited: 8,
-        jobsCreated: 75,
-        biodiversityScore: 60
-      },
-      stakingRewards: {
-        expectedAnnualReturn: 6,
-        stakingPeriod: '18 months',
-        totalStaked: 864
-      }
-    },
-    {
-      id: '3',
-      projectName: 'Mangrove Restoration',
-      owner: 'Coastal Communities Phil',
-      realWorldCO2Impact: 1200,
-      priceInCredits: 22,
-      minimumStake: 4,
-      location: 'Philippines',
-      projectType: 'Ecosystem Restoration',
-      description: 'Coastal ecosystem restoration and community livelihood support',
-      totalNFTs: 120,
-      availableNFTs: 60,
-      verified: true,
-      verificationDate: '2024-11-20',
-      images: [],
-      impactMetrics: {
-        communitiesBenefited: 12,
-        jobsCreated: 200,
-        biodiversityScore: 88
-      },
-      stakingRewards: {
-        expectedAnnualReturn: 7,
-        stakingPeriod: '15 months',
-        totalStaked: 1320
+  useEffect(() => {
+    let isMounted = true;
+    async function fetchBalance() {
+      setLoadingBalance(true);
+      setBalanceError(null);
+      try {
+        if (!userAddress) {
+          setBalanceError('No user address found. Please connect your wallet.');
+          setLoadingBalance(false);
+          return;
+        }
+        const res = await smartContractService.getUserCredits(userAddress);
+        if (isMounted) {
+          if (res.success && res.data) {
+            setUserBalance(res.data);
+          } else {
+            setBalanceError(res.error || 'Failed to fetch balance');
+          }
+          setLoadingBalance(false);
+        }
+      } catch (e: any) {
+        if (isMounted) {
+          setBalanceError(e.message || 'Error fetching balance');
+          setLoadingBalance(false);
+        }
       }
     }
-  ]);
+    fetchBalance();
+    return () => { isMounted = false; };
+  }, [userAddress]);
+
+  // Load listed projects from localStorage and merge with hardcoded ones
+  const [projectNFTs, setProjectNFTs] = useState<ProjectNFT[]>([]);
+
+  useEffect(() => {
+    // Get hardcoded demo projects
+    const demoProjects: ProjectNFT[] = [
+      {
+        id: '1',
+        projectName: 'Amazon Rainforest Conservation',
+        owner: 'Indigenous Community Brazil',
+        realWorldCO2Impact: 1500,
+        priceInCredits: 25,
+        minimumStake: 5,
+        location: 'Brazil',
+        projectType: 'Forest Conservation',
+        description: 'Supporting indigenous communities in preserving 10,000 hectares of rainforest',
+        totalNFTs: 100,
+        availableNFTs: 75,
+        verified: true,
+        verificationDate: '2024-12-15',
+        images: [],
+        status: 'listed',
+        impactMetrics: {
+          communitiesBenefited: 5,
+          jobsCreated: 120,
+          biodiversityScore: 95
+        },
+        stakingRewards: {
+          expectedAnnualReturn: 8,
+          stakingPeriod: '12 months',
+          totalStaked: 625
+        }
+      },
+      {
+        id: '2',
+        projectName: 'Solar Farm Initiative',
+        owner: 'Community Solar Kenya',
+        realWorldCO2Impact: 2000,
+        priceInCredits: 18,
+        minimumStake: 3,
+        location: 'Kenya',
+        projectType: 'Renewable Energy',
+        description: 'Clean energy generation providing power to rural communities',
+        totalNFTs: 80,
+        availableNFTs: 32,
+        verified: true,
+        verificationDate: '2025-01-05',
+        images: [],
+        status: 'listed',
+        impactMetrics: {
+          communitiesBenefited: 8,
+          jobsCreated: 75,
+          biodiversityScore: 60
+        },
+        stakingRewards: {
+          expectedAnnualReturn: 6,
+          stakingPeriod: '18 months',
+          totalStaked: 864
+        }
+      },
+      {
+        id: '3',
+        projectName: 'Mangrove Restoration',
+        owner: 'Coastal Communities Phil',
+        realWorldCO2Impact: 1200,
+        priceInCredits: 22,
+        minimumStake: 4,
+        location: 'Philippines',
+        projectType: 'Ecosystem Restoration',
+        description: 'Coastal ecosystem restoration and community livelihood support',
+        totalNFTs: 120,
+        availableNFTs: 60,
+        verified: true,
+        verificationDate: '2024-11-20',
+        images: [],
+        status: 'listed',
+        impactMetrics: {
+          communitiesBenefited: 12,
+          jobsCreated: 200,
+          biodiversityScore: 88
+        },
+        stakingRewards: {
+          expectedAnnualReturn: 7,
+          stakingPeriod: '15 months',
+          totalStaked: 1320
+        }
+      }
+    ];
+
+    // Load project owner projects from localStorage
+    let listedProjects: ProjectNFT[] = [];
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('projects');
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          listedProjects = parsed
+            .filter((p: any) => p.status === 'listed')
+            .map((p: any) => ({
+              id: p.id,
+              projectName: p.name,
+              owner: p.owner || 'Project Owner',
+              realWorldCO2Impact: p.co2Amount,
+              priceInCredits: p.pricePerTon || 20,
+              minimumStake: 1,
+              location: p.location,
+              projectType: p.type,
+              description: p.description || '',
+              totalNFTs: p.totalSupply || p.co2Amount || 0,
+              availableNFTs: p.availableNFTs || 1,
+              verified: true,
+              verificationDate: p.createdDate || '',
+              images: [],
+              status: 'listed',
+              impactMetrics: {
+                communitiesBenefited: p.communitiesBenefited || 0,
+                jobsCreated: p.jobsCreated || 0,
+                biodiversityScore: p.biodiversityScore || 0
+              },
+              stakingRewards: {
+                expectedAnnualReturn: p.annualReturns || 0,
+                stakingPeriod: '12 months',
+                totalStaked: p.stakingValue || 0
+              }
+            }));
+        } catch (e) {
+          // ignore
+        }
+      }
+    }
+    // Merge and deduplicate by id (localStorage takes precedence)
+    const merged = [...listedProjects, ...demoProjects.filter(d => !listedProjects.some(p => p.id === d.id))];
+    setProjectNFTs(merged);
+  }, []);
 
   const [selectedType, setSelectedType] = useState('All');
   const [priceRange, setPriceRange] = useState([0, 50]);
@@ -233,8 +322,10 @@ export default function CreditBuyerMarketplace() {
     }
   };
 
+  // Only allow listed credits as tradable NFTs
   const filteredAndSortedCredits = projectNFTs
     .filter((project: ProjectNFT) => {
+      if (project.status !== 'listed') return false;
       if (selectedType !== 'All' && project.projectType !== selectedType) return false;
       if (project.priceInCredits < priceRange[0] || project.priceInCredits > priceRange[1]) return false;
       return true;
@@ -280,20 +371,67 @@ export default function CreditBuyerMarketplace() {
           {/* Carbon Credit Balance Display */}
           <div className="mt-4 p-4 bg-green-100 rounded-lg">
             <h3 className="font-semibold text-green-800 mb-2">Your Carbon Credit Wallet</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <p className="text-sm text-gray-600">Available Credits</p>
-                <p className="text-2xl font-bold text-green-700">{userBalance.availableCredits}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Locked Credits</p>
-                <p className="text-2xl font-bold text-blue-700">{userBalance.lockedCredits}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Total Credits</p>
-                <p className="text-2xl font-bold text-gray-700">{userBalance.totalCredits}</p>
-              </div>
-            </div>
+            {(!userAddress || userAddress === '' || userAddress === (process.env.NEXT_PUBLIC_USER_ADDRESS || process.env.SUI_ADDRESS || '')) ? (
+              <button
+                className="bg-black text-white px-4 py-2 rounded mb-4 hover:bg-gray-800"
+                onClick={() => {
+                  // Simulate wallet connect: prompt for address or use env default
+                  const defaultAddr = process.env.NEXT_PUBLIC_USER_ADDRESS || process.env.SUI_ADDRESS || '';
+                  const addr = prompt('Enter your Sui wallet address:', defaultAddr);
+                  if (addr && addr.startsWith('0x') && addr.length >= 42) {
+                    localStorage.setItem('userAddress', addr);
+                    setUserAddress(addr);
+                  } else {
+                    alert('Invalid address. Please enter a valid Sui address.');
+                  }
+                }}
+              >
+                Connect Wallet
+              </button>
+            ) : null}
+            {loadingBalance ? (
+              <div className="text-gray-600">Loading balance...</div>
+            ) : balanceError ? (
+              <div className="text-red-600">{balanceError}</div>
+            ) : userBalance ? (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div title="Credits you can use to buy or retire NFTs.">
+                    <p className="text-sm text-gray-600 flex items-center gap-1">Available Credits
+                      <span className="ml-1" title="Credits you can use to buy or retire NFTs.">🛈</span>
+                    </p>
+                    <p className="text-2xl font-bold text-green-700">{typeof userBalance.availableCredits === 'number' ? userBalance.availableCredits.toLocaleString() : '0'}</p>
+                  </div>
+                  <div title="Credits currently locked in ongoing transactions or staking.">
+                    <p className="text-sm text-gray-600 flex items-center gap-1">Locked Credits
+                      <span className="ml-1" title="Credits currently locked in ongoing transactions or staking.">🛈</span>
+                    </p>
+                    <p className="text-2xl font-bold text-blue-700">{typeof userBalance.lockedCredits === 'number' ? userBalance.lockedCredits.toLocaleString() : '0'}</p>
+                  </div>
+                  <div title="Total credits in your wallet (available + locked)">
+                    <p className="text-sm text-gray-600 flex items-center gap-1">Total Credits
+                      <span className="ml-1" title="Total credits in your wallet (available + locked)">🛈</span>
+                    </p>
+                    <p className="text-2xl font-bold text-gray-700">{typeof userBalance.totalCredits === 'number' ? userBalance.totalCredits.toLocaleString() : '0'}</p>
+                  </div>
+                </div>
+                {userBalance.creditTypes && (
+                  <div className="mt-4">
+                    <h4 className="font-semibold text-sm mb-2">By Project Type</h4>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                      {Object.entries(userBalance.creditTypes).map(([type, amount]) => (
+                        <div key={type} className="bg-white border border-gray-200 rounded p-2 text-xs flex justify-between">
+                          <span className="capitalize">{type.replace(/([A-Z])/g, ' $1').toLowerCase()}</span>
+                          <span className="font-semibold">{amount}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="text-gray-600">No balance data found.</div>
+            )}
           </div>
         </div>
 
@@ -504,29 +642,6 @@ export default function CreditBuyerMarketplace() {
           ))}
         </div>
 
-        {/* Cart Summary */}
-        {cartSummary.itemCount > 0 && (
-          <div className="fixed bottom-4 right-4 bg-black text-white p-4 border border-black max-w-sm">
-            <h3 className="font-bold mb-2">Cart Summary</h3>
-            <p className="text-sm mb-3">
-              {cartSummary.itemCount} items • Total: ${cartSummary.totalAmount.toFixed(2)}
-            </p>
-            <div className="flex gap-2">
-              <Link
-                href="/credit-buyer/cart"
-                className="flex-1 bg-white text-black py-2 px-3 text-sm hover:bg-gray-200 transition-colors text-center"
-              >
-                View Cart
-              </Link>
-              <Link
-                href="/credit-buyer/cart"
-                className="flex-1 bg-green-600 text-white py-2 px-3 text-sm hover:bg-green-700 transition-colors text-center"
-              >
-                Checkout
-              </Link>
-            </div>
-          </div>
-        )}
       </main>
     </Navigation>
   );

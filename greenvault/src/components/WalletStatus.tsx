@@ -180,7 +180,7 @@ export default function WalletStatus({
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <Wallet className="w-5 h-5 text-blue-600" />
-          <h3 className="text-lg font-semibold text-gray-900">Sui Wallet</h3>
+          <h3 className="text-lg font-semibold text-gray-900">Your Wallet Status</h3>
         </div>
         <button
           onClick={refreshWallet}
@@ -214,13 +214,6 @@ export default function WalletStatus({
             <span className="text-sm font-medium text-gray-600">Address:</span>
             <span className="text-sm font-mono text-gray-900" title={wallet.address || wallet.userAddress}>
               {formatAddress(wallet.address || wallet.userAddress)}
-            </span>
-          </div>
-
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-gray-600">Balance:</span>
-            <span className="text-sm font-medium text-gray-900">
-              {formatBalance(wallet.balance)} SUI
             </span>
           </div>
 
