@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import { smartContractService } from '@/lib/smartContractService';
 import Link from 'next/link';
 import Navigation from '@/components/Navigation';
+import WalletStatus from '@/components/WalletStatus';
+import { useWalletIntegration } from '@/lib/hooks/useWalletIntegration';
 import { cartUtils } from '@/lib/cartUtils';
 import { CarbonCreditEconomy, carbonCreditUtils, CarbonCreditBalance } from '@/lib/carbonCreditEconomy';
 
@@ -57,12 +59,38 @@ export default function CreditBuyerMarketplace() {
   // Replace with real user address (from wallet or session)
   const [userAddress, setUserAddress] = useState<string>('');
 
-  // On mount, get user address from localStorage or env
+
+  // Load authenticated user data from localStorage/session (supports email & Google)
+  const [currentUser, setCurrentUser] = useState<{ id: string; email: string; role?: string } | null>(null);
+
+  useEffect(() => {
+    // Dynamically import to avoid SSR issues with localStorage
+    import('@/lib/auth/user-data-sync').then(({ loadUnifiedUserData }) => {
+      const user = loadUnifiedUserData();
+      if (user && user.id && user.email) {
+        setCurrentUser({ id: user.id, email: user.email, role: user.authType });
+      }
+    });
+  }, []);
+
+  // Wallet integration hook (only activate if user loaded)
+  const {
+    wallet,
+    loading: walletLoading,
+    error: walletError,
+    activateWallet,
+    refreshWallet,
+    isWalletReady,
+    canTransact
+  } = useWalletIntegration({
+    userId: currentUser?.id,
+    email: currentUser?.email,
+    autoRefresh: true,
+    refreshInterval: 30000
+  });
+    
   useEffect(() => {
     let addr = '';
-    if (typeof window !== 'undefined') {
-      addr = localStorage.getItem('userAddress') || '';
-    }
     if (!addr) {
       // Only use env variable, never hardcode the address
       addr = process.env.NEXT_PUBLIC_USER_ADDRESS || process.env.SUI_ADDRESS || '';
@@ -261,6 +289,17 @@ export default function CreditBuyerMarketplace() {
   const projectTypes = ['All', 'Forest Conservation', 'Renewable Energy', 'Ecosystem Restoration', 'Clean Cooking', 'Agriculture'];
 
   const addToCart = (project: ProjectNFT, quantity: number = 1) => {
+    // Check if wallet is ready for transactions
+    if (!canTransact) {
+      alert('Please activate your Sui wallet first to add items to cart.');
+      return;
+    }
+
+    if (!wallet) {
+      alert('Wallet not available. Please activate your wallet.');
+      return;
+    }
+
     // Convert ProjectNFT to CarbonCredit format for cart
     const credit: CarbonCredit = {
       id: project.id,
@@ -277,8 +316,8 @@ export default function CreditBuyerMarketplace() {
     const success = cartUtils.addToCart(credit, quantity);
 
     if (success) {
-      // Show success feedback
-      alert(`Added ${quantity} credit(s) from ${project.projectName} to cart!`);
+      // Show success feedback with wallet info
+      alert(`Added ${quantity} credit(s) from ${project.projectName} to cart!\n\nWallet: ${wallet.address}\nBalance: ${wallet.balance.toFixed(4)} SUI`);
     } else {
       alert('Failed to add item to cart. Please try again.');
     }
@@ -306,11 +345,30 @@ export default function CreditBuyerMarketplace() {
     <Navigation>
       {/* Main Content */}
       <main className="max-w-6xl mx-auto px-4 py-8">
-        {/* Header Section */}
+        {/* Header Section with Wallet Status */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold mb-2">🌱 Carbon Credit NFT Marketplace</h1>
           <p className="text-gray-600">Invest your carbon credits in real-world offset projects represented as tradable NFTs.</p>
-          
+
+          {/* Wallet Status Alert */}
+          {!isWalletReady && (
+            <div className="mt-4 p-4 bg-yellow-50 border border-yellow-50 rounded-lg">
+              <h3 className="font-semibold text-yellow-800 mb-2">Sui Wallet Required for Purchasing</h3>
+              <p className="text-yellow-700 text-sm">
+                You need an activated Sui wallet to buy carbon credits. Your wallet handles secure blockchain transactions.
+              </p>
+            </div>
+          )}
+          {/* Sui Wallet Status Component - now below the alert, with extra margin */}
+          <div className="mt-3">
+            <WalletStatus 
+              userId={currentUser?.id || ''}
+              email={currentUser?.email || ''}
+              showFullAddress={true}
+              className="h-fit mb-4"
+            />
+          </div>
+
           {/* Carbon Credit Balance Display */}
           <div className="mt-4 p-4 bg-green-100 rounded-lg">
             <h3 className="font-semibold text-green-800 mb-2">Your Carbon Credit Wallet</h3>
@@ -358,9 +416,7 @@ export default function CreditBuyerMarketplace() {
                     <p className="text-2xl font-bold text-gray-700">{typeof userBalance.totalCredits === 'number' ? userBalance.totalCredits.toLocaleString() : '0'}</p>
                   </div>
                 </div>
-                <div className="mt-2 text-xs text-gray-500">
-                  <span className="font-semibold">Wallet Address:</span> {userAddress ? `${userAddress.slice(0, 8)}...${userAddress.slice(-6)}` : 'Not connected'}
-                </div>
+
                 {userBalance.creditTypes && (
                   <div className="mt-4">
                     <h4 className="font-semibold text-sm mb-2">By Project Type</h4>
@@ -550,7 +606,13 @@ export default function CreditBuyerMarketplace() {
                     />
                     <button
                       onClick={() => addToCart(project, 1)}
-                      className="bg-green-600 text-white px-4 py-2 text-sm hover:bg-green-700 transition-colors"
+                      disabled={!canTransact}
+                      className={`bg-green-600 text-white px-4 py-2 text-sm transition-colors ${
+                        canTransact 
+                          ? 'hover:bg-green-700' 
+                          : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                      }`}
+                      title={!canTransact ? 'Please activate your wallet first' : 'Add to cart'}
                     >
                       Add to Cart
                     </button>
@@ -563,8 +625,17 @@ export default function CreditBuyerMarketplace() {
                     >
                       View Details
                     </Link>
-                    <button className="bg-black text-white px-4 py-2 text-sm hover:bg-white hover:text-black border border-black transition-colors">
-                      Buy Now
+                    <button 
+                      onClick={() => addToCart(project, 1)}
+                      disabled={!canTransact}
+                      className={`px-4 py-2 text-sm border border-black transition-colors ${
+                        canTransact
+                          ? 'bg-black text-white hover:bg-white hover:text-black'
+                          : 'bg-gray-300 text-gray-500 border-gray-300 cursor-not-allowed'
+                      }`}
+                      title={!canTransact ? 'Please activate your wallet first' : 'Buy this project NFT'}
+                    >
+                      {canTransact ? 'Buy Now' : 'Wallet Required'}
                     </button>
                   </div>
                 </div>

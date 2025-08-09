@@ -43,7 +43,19 @@ export default function RoleSelectionPage() {
     setSelectedRole(roleId);
     // Store role in localStorage for future reference
     localStorage.setItem('user-role', roleId);
-    
+
+    // Also update role in unified user data if present
+    try {
+      const userDataStr = localStorage.getItem('user-data');
+      if (userDataStr) {
+        const userData = JSON.parse(userDataStr);
+        userData.role = roleId;
+        localStorage.setItem('user-data', JSON.stringify(userData));
+      }
+    } catch (err) {
+      console.warn('Failed to sync role to user-data:', err);
+    }
+
     // Redirect to role-specific interface
     setTimeout(() => {
       window.location.href = redirectPath;
