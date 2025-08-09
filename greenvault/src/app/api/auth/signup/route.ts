@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { hashPassword, isValidEmail, isValidPassword, generateToken } from '@/lib/auth';
 import { createUser, userExists } from '@/lib/serverUserStore';
-import { ensureUserHasDID } from '@/lib/didUtils';
+import { ensureUserHasDID } from '@/lib/did/didUtils';
+import { vaultService } from '@/lib/vault/vault-service';
+import { initializeUserVaultSafely, generateVaultKeyFromPassword } from '@/lib/vault/vault-auth';
 import type { SignupCredentials, AuthResponse } from '@/types/zklogin';
 
 export async function POST(request: NextRequest) {
@@ -77,6 +79,9 @@ export async function POST(request: NextRequest) {
       createdAt: finalUser.createdAt,
     });
 
+    // Vault will be set up during onboarding
+    console.log('[signup] Vault will be set up during onboarding for user:', finalUser.email);
+
     console.log('[signup] Signup successful for user:', finalUser.email);
 
     return NextResponse.json({
@@ -94,7 +99,7 @@ export async function POST(request: NextRequest) {
         didInfo: didInfo ? {
           did: didInfo.did,
           isNew: didInfo.isNew
-        } : undefined,
+        } : undefined
       },
     } as AuthResponse);
 

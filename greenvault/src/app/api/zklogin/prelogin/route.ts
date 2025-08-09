@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { suiZkLoginClient } from '@/lib/sui-zklogin';
+import { suiZkLoginClient } from '@/lib/zklogin/sui-zklogin';
 
 export async function POST() {
   try {

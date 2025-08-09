@@ -1,5 +1,5 @@
 import { AccountData } from '@/types/walrus';
-//import { VaultData } from '@/types/vault';
+import { VaultData } from '@/types/vault';
 
 /**
  * Cryptographic configuration
@@ -47,6 +47,100 @@ async function deriveKey(userKey: string, salt: Uint8Array): Promise<CryptoKey> 
     false,
     ['encrypt', 'decrypt']
   );
+}
+
+/**
+ * Seal simple string data using AES-GCM authenticated encryption
+ */
+export async function sealStringAESGCM(data: string, userKey: string): Promise<string> {
+  console.log('[walrus-crypto] Sealing string data...');
+
+  try {
+    // Generate random salt and IV
+    const salt = crypto.getRandomValues(new Uint8Array(CRYPTO_CONFIG.KDF.saltLength));
+    const iv = crypto.getRandomValues(new Uint8Array(CRYPTO_CONFIG.AES_GCM.ivLength));
+    
+    // Derive encryption key
+    const key = await deriveKey(userKey, salt);
+    
+    // Prepare data for encryption
+    const dataBytes = new TextEncoder().encode(data);
+    
+    // Encrypt with AES-GCM
+    const encrypted = await crypto.subtle.encrypt(
+      {
+        name: CRYPTO_CONFIG.AES_GCM.algorithm,
+        iv: iv,
+      },
+      key,
+      dataBytes
+    );
+    
+    // Combine salt + iv + encrypted data
+    const encryptedBytes = new Uint8Array(encrypted);
+    const combined = new Uint8Array(
+      salt.length + iv.length + encryptedBytes.length
+    );
+    
+    combined.set(salt, 0);
+    combined.set(iv, salt.length);
+    combined.set(encryptedBytes, salt.length + iv.length);
+    
+    const sealedData = btoa(String.fromCharCode(...combined));
+    
+    console.log('[walrus-crypto] Sealed data size:', sealedData.length, 'chars');
+    console.log('[walrus-crypto] Data sealed successfully!');
+    
+    return sealedData;
+  } catch (error) {
+    console.error('[walrus-crypto] Failed to seal data:', error);
+    throw new Error('Failed to seal string data with AES-GCM');
+  }
+}
+
+/**
+ * Unseal simple string data using AES-GCM authenticated decryption
+ */
+export async function unsealStringAESGCM(sealedData: string, userKey: string): Promise<string> {
+  console.log('[walrus-crypto] Unsealing string data...');
+
+  try {
+    // Decode base64 data
+    const combined = new Uint8Array(
+      atob(sealedData).split('').map(c => c.charCodeAt(0))
+    );
+    
+    // Extract salt, IV, and encrypted data
+    const saltLength = CRYPTO_CONFIG.KDF.saltLength;
+    const ivLength = CRYPTO_CONFIG.AES_GCM.ivLength;
+    
+    const salt = combined.slice(0, saltLength);
+    const iv = combined.slice(saltLength, saltLength + ivLength);
+    const encryptedData = combined.slice(saltLength + ivLength);
+    
+    // Derive decryption key
+    const key = await deriveKey(userKey, salt);
+    
+    // Decrypt with AES-GCM
+    const decrypted = await crypto.subtle.decrypt(
+      {
+        name: CRYPTO_CONFIG.AES_GCM.algorithm,
+        iv: iv,
+      },
+      key,
+      encryptedData
+    );
+    
+    // Parse decrypted data
+    const data = new TextDecoder().decode(decrypted);
+
+    console.log('[walrus-crypto] Data unsealed successfully!');
+    
+    return data;
+  } catch (error) {
+    console.error('[walrus-crypto] Failed to unseal data:', error);
+    throw new Error('Failed to unseal string data with AES-GCM');
+  }
 }
 
 /**
@@ -191,156 +285,137 @@ export function validateAESGCMFormat(sealedData: string): boolean {
 // seal and unseal for vault
 
 
-// /**
-//  * Vault-specific encryption functions
-//  */
-// export async function sealVaultDataAESGCM(vaultData: VaultData, userKey: string): Promise<string> {
-//   const dataString = JSON.stringify(vaultData);
-//   const encoder = new TextEncoder();
-//   const data = encoder.encode(dataString);
+/**
+ * Vault-specific encryption functions
+ */
+export async function sealVaultDataAESGCM(vaultData: VaultData, userKey: string): Promise<string> {
+  console.log('[walrus-crypto] Sealing vault data...');
+  console.log('[walrus-crypto] Vault data for user:', vaultData.metadata.userId);
+  console.log('[walrus-crypto] Total entries:', vaultData.metadata.totalEntries);
 
-//   // Generate random salt and IV
-//   const salt = crypto.getRandomValues(new Uint8Array(CRYPTO_CONFIG.KDF.saltLength));
-//   const iv = crypto.getRandomValues(new Uint8Array(CRYPTO_CONFIG.AES_GCM.ivLength));
+  try {
+    // Generate random salt and IV
+    const salt = crypto.getRandomValues(new Uint8Array(CRYPTO_CONFIG.KDF.saltLength));
+    const iv = crypto.getRandomValues(new Uint8Array(CRYPTO_CONFIG.AES_GCM.ivLength));
+    
+    // Derive encryption key
+    const key = await deriveKey(userKey, salt);
+    
+    // Prepare data for encryption
+    const jsonData = JSON.stringify(vaultData);
+    const dataBytes = new TextEncoder().encode(jsonData);
+    
+    // Encrypt with AES-GCM
+    const encrypted = await crypto.subtle.encrypt(
+      {
+        name: CRYPTO_CONFIG.AES_GCM.algorithm,
+        iv: iv,
+      },
+      key,
+      dataBytes
+    );
+    
+    // Combine salt + iv + encrypted data
+    const encryptedBytes = new Uint8Array(encrypted);
+    const combined = new Uint8Array(
+      salt.length + iv.length + encryptedBytes.length
+    );
+    
+    combined.set(salt, 0);
+    combined.set(iv, salt.length);
+    combined.set(encryptedBytes, salt.length + iv.length);
+    
+    const sealedData = btoa(String.fromCharCode(...combined));
+    
+    console.log('[walrus-crypto] Vault data sealed successfully!');
+    console.log('[walrus-crypto] Sealed data size:', sealedData.length, 'chars');
+    console.log('[walrus-crypto] Encryption details:', {
+      algorithm: CRYPTO_CONFIG.AES_GCM.algorithm,
+      keyLength: CRYPTO_CONFIG.AES_GCM.keyLength,
+      ivLength: CRYPTO_CONFIG.AES_GCM.ivLength,
+      saltLength: CRYPTO_CONFIG.KDF.saltLength,
+      iterations: CRYPTO_CONFIG.KDF.iterations,
+    });
+    
+    return sealedData;
+  } catch (error) {
+    console.error('[walrus-crypto] Failed to seal vault data:', error);
+    throw new Error('Failed to seal vault data with AES-GCM');
+  }
+}
 
-//   // Derive key from user key and salt
-//   const key = await deriveKey(userKey, salt);
+export async function unsealVaultDataAESGCM(sealedData: string, userKey: string): Promise<VaultData> {
+  console.log('[walrus-crypto] Unsealing vault data...');
 
-//   try {
-//     // Encrypt data with AES-GCM
-//     const encrypted = await crypto.subtle.encrypt(
-//       {
-//         name: CRYPTO_CONFIG.AES_GCM.algorithm,
-//         iv: iv,
-//         tagLength: CRYPTO_CONFIG.AES_GCM.tagLength * 8 // bits
-//       },
-//       key,
-//       data
-//     );
+  try {
+    // Decode base64 data
+    const combined = new Uint8Array(
+      atob(sealedData).split('').map(c => c.charCodeAt(0))
+    );
+    
+    // Extract salt, IV, and encrypted data
+    const saltLength = CRYPTO_CONFIG.KDF.saltLength;
+    const ivLength = CRYPTO_CONFIG.AES_GCM.ivLength;
+    
+    const salt = combined.slice(0, saltLength);
+    const iv = combined.slice(saltLength, saltLength + ivLength);
+    const encryptedData = combined.slice(saltLength + ivLength);
+    
+    // Derive decryption key
+    const key = await deriveKey(userKey, salt);
+    
+    // Decrypt with AES-GCM
+    const decrypted = await crypto.subtle.decrypt(
+      {
+        name: CRYPTO_CONFIG.AES_GCM.algorithm,
+        iv: iv,
+      },
+      key,
+      encryptedData
+    );
+    
+    // Parse decrypted data
+    const jsonData = new TextDecoder().decode(decrypted);
+    const vaultData = JSON.parse(jsonData) as VaultData;
 
-//     // Combine salt + iv + encrypted data (includes auth tag)
-//     const encryptedArray = new Uint8Array(encrypted);
-//     const combined = new Uint8Array(salt.length + iv.length + encryptedArray.length);
-//     combined.set(salt, 0);
-//     combined.set(iv, salt.length);
-//     combined.set(encryptedArray, salt.length + iv.length);
+    console.log('[walrus-crypto] Vault data for user:', vaultData.metadata.userId);
+    console.log('[walrus-crypto] Total entries:', vaultData.metadata.totalEntries);
+    console.log('[walrus-crypto] Vault data unsealed successfully!');
 
-//     // Return base64 encoded result
-//     return btoa(String.fromCharCode.apply(null, Array.from(combined)));
-//   } catch (error) {
-//     console.error('[crypto] Vault encryption failed:', error);
-//     throw new Error(`Vault encryption failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
-//   }
-// }
+    return vaultData;
+  } catch (error) {
+    console.error('[walrus-crypto] Failed to unseal vault data:', error);
 
-// export async function unsealVaultDataAESGCM(sealedData: string, userKey: string): Promise<VaultData> {
-//   try {
-//     // Decode base64
-//     const combined = new Uint8Array(
-//       atob(sealedData).split('').map(c => c.charCodeAt(0))
-//     );
+    // More specific error messages for debugging
+    if (error instanceof DOMException) {
+      if (error.name === 'OperationError') {
+        throw new Error('Failed to decrypt vault data - invalid password or corrupted data');
+      }
+      if (error.name === 'InvalidAccessError') {
+        throw new Error('Invalid encryption parameters');
+      }
+    }
+    
+    throw new Error('Failed to unseal vault data with AES-GCM');
+  }
+}
 
-//     // Extract components
-//     const salt = combined.slice(0, CRYPTO_CONFIG.KDF.saltLength);
-//     const iv = combined.slice(CRYPTO_CONFIG.KDF.saltLength, CRYPTO_CONFIG.KDF.saltLength + CRYPTO_CONFIG.AES_GCM.ivLength);
-//     const encrypted = combined.slice(CRYPTO_CONFIG.KDF.saltLength + CRYPTO_CONFIG.AES_GCM.ivLength);
+/**
+ * Validate sealed vault data format for AES-GCM
+ * Ensures the data has the expected structure: salt(16) + iv(12) + encrypted_data + auth_tag
+ */
+export function validateVaultAESGCMFormat(sealedData: string): boolean {
+  try {
+    const combined = new Uint8Array(
+      atob(sealedData).split('').map(c => c.charCodeAt(0))
+    );
+    
+    const expectedMinLength = CRYPTO_CONFIG.KDF.saltLength + CRYPTO_CONFIG.AES_GCM.ivLength + CRYPTO_CONFIG.AES_GCM.tagLength;
+    
+    return combined.length >= expectedMinLength;
+  } catch (error) {
+    console.error('[walrus-crypto] Invalid vault AES-GCM format:', error);
+    return false;
+  }
+}
 
-//     // Derive key from user key and salt
-//     const key = await deriveKey(userKey, salt);
-
-//     // Decrypt data
-//     const decrypted = await crypto.subtle.decrypt(
-//       {
-//         name: CRYPTO_CONFIG.AES_GCM.algorithm,
-//         iv: iv,
-//         tagLength: CRYPTO_CONFIG.AES_GCM.tagLength * 8 // bits
-//       },
-//       key,
-//       encrypted
-//     );
-
-//     const decoder = new TextDecoder();
-//     const dataString = decoder.decode(decrypted);
-//     const vaultData = JSON.parse(dataString) as VaultData;
-
-//     return vaultData;
-//   } catch (error) {
-//     console.error('[crypto] Vault decryption failed:', error);
-//     throw new Error(`Vault decryption failed: ${error instanceof Error ? error.message : 'Invalid password or corrupted data'}`);
-//   }
-// }
-
-// /**
-//  * Simple string encryption functions for individual secrets
-//  */
-// export async function sealStringAESGCM(data: string, userKey: string): Promise<string> {
-//   const encoder = new TextEncoder();
-//   const dataBytes = encoder.encode(data);
-
-//   // Generate random salt and IV
-//   const salt = crypto.getRandomValues(new Uint8Array(CRYPTO_CONFIG.KDF.saltLength));
-//   const iv = crypto.getRandomValues(new Uint8Array(CRYPTO_CONFIG.AES_GCM.ivLength));
-
-//   // Derive key from user key and salt
-//   const key = await deriveKey(userKey, salt);
-
-//   try {
-//     // Encrypt data with AES-GCM
-//     const encrypted = await crypto.subtle.encrypt(
-//       {
-//         name: CRYPTO_CONFIG.AES_GCM.algorithm,
-//         iv: iv,
-//         tagLength: CRYPTO_CONFIG.AES_GCM.tagLength * 8 // bits
-//       },
-//       key,
-//       dataBytes
-//     );
-
-//     // Combine salt + iv + encrypted data (includes auth tag)
-//     const encryptedArray = new Uint8Array(encrypted);
-//     const combined = new Uint8Array(salt.length + iv.length + encryptedArray.length);
-//     combined.set(salt, 0);
-//     combined.set(iv, salt.length);
-//     combined.set(encryptedArray, salt.length + iv.length);
-
-//     // Return base64 encoded result
-//     return btoa(String.fromCharCode.apply(null, Array.from(combined)));
-//   } catch (error) {
-//     console.error('[crypto] String encryption failed:', error);
-//     throw new Error(`String encryption failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
-//   }
-// }
-
-// export async function unsealStringAESGCM(sealedData: string, userKey: string): Promise<string> {
-//   try {
-//     // Decode base64
-//     const combined = new Uint8Array(
-//       atob(sealedData).split('').map(c => c.charCodeAt(0))
-//     );
-
-//     // Extract components
-//     const salt = combined.slice(0, CRYPTO_CONFIG.KDF.saltLength);
-//     const iv = combined.slice(CRYPTO_CONFIG.KDF.saltLength, CRYPTO_CONFIG.KDF.saltLength + CRYPTO_CONFIG.AES_GCM.ivLength);
-//     const encrypted = combined.slice(CRYPTO_CONFIG.KDF.saltLength + CRYPTO_CONFIG.AES_GCM.ivLength);
-
-//     // Derive key from user key and salt
-//     const key = await deriveKey(userKey, salt);
-
-//     // Decrypt data
-//     const decrypted = await crypto.subtle.decrypt(
-//       {
-//         name: CRYPTO_CONFIG.AES_GCM.algorithm,
-//         iv: iv,
-//         tagLength: CRYPTO_CONFIG.AES_GCM.tagLength * 8 // bits
-//       },
-//       key,
-//       encrypted
-//     );
-
-//     const decoder = new TextDecoder();
-//     return decoder.decode(decrypted);
-//   } catch (error) {
-//     console.error('[crypto] String decryption failed:', error);
-//     throw new Error(`String decryption failed: ${error instanceof Error ? error.message : 'Invalid password or corrupted data'}`);
-//   }
-// }
