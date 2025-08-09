@@ -3,8 +3,14 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Navigation from '@/components/Navigation';
-import WalletStatus from '@/components/WalletStatus';
-import { useWalletIntegration } from '@/lib/hooks/useWalletIntegration';
+import { 
+  useBuyCarbonCredit, 
+  useListCarbonCredit, 
+  useMarketplaceStats,
+  useUserCredits,
+  useRegisterProject,
+  useMintCarbonCredit
+} from '@/lib/useSmartContract';
 
 interface CarbonCredit {
   id: string;
@@ -18,26 +24,23 @@ interface CarbonCredit {
 }
 
 export default function MarketplacePage() {
-  // Sample user data - in real app, this would come from authentication context
-  const [currentUser, setCurrentUser] = useState({ 
-    id: 'user123', 
-    email: 'user@example.com' 
-  });
+  // Smart contract hooks
+  const { execute: buyCredit, loading: buyLoading, error: buyError } = useBuyCarbonCredit();
+  const { execute: listCredit, loading: listLoading, error: listError } = useListCarbonCredit();
+  const { execute: registerProject, loading: registerLoading, error: registerError } = useRegisterProject();
+  const { execute: mintCredit, loading: mintLoading, error: mintError } = useMintCarbonCredit();
+  const { data: marketStats, loading: statsLoading } = useMarketplaceStats();
   
-  // Wallet integration hook
-  const { 
-    wallet, 
-    loading: walletLoading, 
-    error: walletError, 
-    activateWallet, 
-    refreshWallet, 
-    isWalletReady, 
-    canTransact 
-  } = useWalletIntegration({
-    userId: currentUser.id,
-    email: currentUser.email,
-    autoRefresh: true,
-    refreshInterval: 30000
+  // Form states
+  const [newProjectForm, setNewProjectForm] = useState({
+    projectId: '',
+    name: '',
+    description: '',
+    location: '',
+    projectType: 0,
+    co2ReductionCapacity: 0,
+    price: 0,
+    oracleDataSource: '',
   });
 
   const [credits] = useState<CarbonCredit[]>([
@@ -85,6 +88,7 @@ export default function MarketplacePage() {
 
   const [filter, setFilter] = useState('All');
   const [showListForm, setShowListForm] = useState(false);
+  const [notification, setNotification] = useState<{type: 'success' | 'error', message: string} | null>(null);
 
   const projectTypes = ['All', 'Forest Conservation', 'Renewable Energy', 'Ecosystem Restoration'];
 
@@ -92,121 +96,121 @@ export default function MarketplacePage() {
     ? credits 
     : credits.filter(c => c.projectType === filter);
 
-  const handlePurchase = async (creditId: string) => {
-    if (!canTransact) {
-      alert('Please activate your Sui wallet first to make purchases.');
-      return;
-    }
-
-    if (!wallet) {
-      alert('Wallet not available. Please activate your wallet.');
-      return;
-    }
-
-    const credit = credits.find(c => c.id === creditId);
-    if (!credit) {
-      alert('Credit not found.');
-      return;
-    }
-
-    // Convert USD price to SUI (simplified conversion - in real app, use actual exchange rates)
-    const suiPrice = credit.price * 0.1; // Assuming 1 SUI ≈ $10 USD for demo
-
-    const confirmed = confirm(
-      `Purchase ${credit.co2Amount} tons of CO2 credits from ${credit.projectName}?\n\n` +
-      `Price: ${suiPrice.toFixed(4)} SUI (≈$${credit.price})\n` +
-      `Your wallet: ${wallet.address}\n` +
-      `Current balance: ${wallet.balance} SUI\n\n` +
-      `This will create a blockchain transaction.`
-    );
-
-    if (!confirmed) return;
-
+  // Handle credit purchase with smart contract
+  const handlePurchase = async (creditId: string, price: number) => {
     try {
-      console.log('Initiating purchase transaction...');
+      setNotification(null);
       
-      // Get auth token
-      const token = localStorage.getItem('authToken');
-      if (!token) {
-        alert('Authentication required. Please log in.');
-        return;
-      }
-
-      const response = await fetch('/api/wallet-transactions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          action: 'purchase',
-          userId: currentUser.id,
-          creditId: creditId,
-          paymentAmountSui: suiPrice,
-        }),
-      });
-
-      const result = await response.json();
-
+      // Convert price to appropriate units (assuming SUI units)
+      const paymentAmount = Math.floor(price * 1000000000); // Convert to mist units
+      
+      const result = await buyCredit(creditId, paymentAmount);
+      
       if (result.success) {
-        alert(
-          `Purchase successful!\n\n` +
-          `Transaction ID: ${result.txDigest}\n` +
-          `You now own ${credit.co2Amount} tons of CO2 credits from ${credit.projectName}`
-        );
-        
-        // Refresh wallet balance
-        await refreshWallet();
-        
-        console.log('Purchase completed:', result);
+        setNotification({
+          type: 'success',
+          message: `Successfully purchased credit ${creditId}! Transaction: ${result.txDigest?.slice(0, 10)}...`
+        });
       } else {
-        alert(`Purchase failed: ${result.error}`);
-        console.error('Purchase failed:', result.error);
+        setNotification({
+          type: 'error',
+          message: result.error || 'Purchase failed'
+        });
       }
     } catch (error) {
-      console.error('Purchase error:', error);
-      alert('Purchase failed due to network error. Please try again.');
+      setNotification({
+        type: 'error',
+        message: 'Transaction failed. Please try again.'
+      });
     }
   };
+
+  // Handle new project registration
+  const handleCreateProject = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    try {
+      setNotification(null);
+      
+      const projectData = {
+        projectId: newProjectForm.projectId || `PRJ_${Date.now()}`,
+        name: newProjectForm.name,
+        description: newProjectForm.description,
+        location: newProjectForm.location,
+        projectType: newProjectForm.projectType,
+        co2ReductionCapacity: newProjectForm.co2ReductionCapacity,
+        oracleDataSource: newProjectForm.oracleDataSource || 'default_oracle',
+      };
+      
+      const result = await registerProject(projectData);
+      
+      if (result.success) {
+        setNotification({
+          type: 'success',
+          message: `Project registered successfully! Transaction: ${result.txDigest?.slice(0, 10)}...`
+        });
+        
+        // Reset form
+        setNewProjectForm({
+          projectId: '',
+          name: '',
+          description: '',
+          location: '',
+          projectType: 0,
+          co2ReductionCapacity: 0,
+          price: 0,
+          oracleDataSource: '',
+        });
+        setShowListForm(false);
+      } else {
+        setNotification({
+          type: 'error',
+          message: result.error || 'Project registration failed'
+        });
+      }
+    } catch (error) {
+      setNotification({
+        type: 'error',
+        message: 'Project registration failed. Please try again.'
+      });
+    }
+  };
+
+  // Clear notification after 5 seconds
+  useEffect(() => {
+    if (notification) {
+      const timer = setTimeout(() => setNotification(null), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [notification]);
 
   return (
     <Navigation>
       <main className="max-w-6xl mx-auto px-4 py-8">
-        {/* Header with Wallet Status */}
-        <div className="flex flex-col lg:flex-row gap-6 mb-8">
-          <div className="flex-1">
-            <div className="flex justify-between items-center mb-4">
-              <div>
-                <h1 className="text-3xl font-bold mb-2">Carbon Credit Marketplace</h1>
-                <p className="text-gray-600">Verified carbon offset projects as NFTs</p>
-              </div>
-              <button
-                onClick={() => setShowListForm(true)}
-                className="bg-black text-white px-6 py-2 border border-black hover:bg-white hover:text-black transition-colors"
-              >
-                List New Credit
-              </button>
-            </div>
-            
-            {/* Wallet Status Alert */}
-            {!isWalletReady && (
-              <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                <h3 className="font-semibold text-yellow-800 mb-2">Wallet Required for Trading</h3>
-                <p className="text-yellow-700 text-sm">
-                  You need an activated Sui wallet to buy carbon credits. Your wallet will be used for secure blockchain transactions.
-                </p>
-              </div>
-            )}
+        {/* Notification */}
+        {notification && (
+          <div className={`mb-4 p-4 border ${
+            notification.type === 'success' 
+              ? 'border-green-500 bg-green-50 text-green-800' 
+              : 'border-red-500 bg-red-50 text-red-800'
+          }`}>
+            <p>{notification.message}</p>
           </div>
+        )}
 
-          {/* Wallet Status Component */}
-          <div className="lg:w-80">
-            <WalletStatus 
-              userId={currentUser.id}
-              email={currentUser.email}
-              showFullAddress={false}
-            />
+        <div className="flex justify-between items-center mb-8">
+          <div>
+            <h1 className="text-3xl font-bold mb-2">Carbon Credit Marketplace</h1>
+            <p className="text-gray-600">Verified carbon offset projects as NFTs</p>
+            {statsLoading && <p className="text-sm text-gray-500">Loading marketplace stats...</p>}
           </div>
+          <button
+            onClick={() => setShowListForm(true)}
+            className="bg-black text-white px-6 py-2 border border-black hover:bg-white hover:text-black transition-colors"
+            disabled={registerLoading}
+          >
+            {registerLoading ? 'Creating...' : 'Register New Project'}
+          </button>
         </div>
 
         {/* Filter */}
@@ -226,56 +230,80 @@ export default function MarketplacePage() {
           ))}
         </div>
 
-        {/* List New Credit Form */}
+        {/* New Project Registration Form */}
         {showListForm && (
           <div className="border border-black p-6 mb-6 bg-gray-50">
-            <h3 className="text-lg font-bold mb-4">List New Carbon Credit</h3>
-            <div className="grid md:grid-cols-2 gap-4 mb-4">
+            <h3 className="text-lg font-bold mb-4">Register New Carbon Credit Project</h3>
+            <form onSubmit={handleCreateProject}>
+              <div className="grid md:grid-cols-2 gap-4 mb-4">
+                <input
+                  type="text"
+                  placeholder="Project Name"
+                  value={newProjectForm.name}
+                  onChange={(e) => setNewProjectForm(prev => ({ ...prev, name: e.target.value }))}
+                  className="border border-black px-3 py-2 bg-white text-black focus:outline-none focus:ring-1 focus:ring-black"
+                  required
+                />
+                <input
+                  type="text"
+                  placeholder="Location"
+                  value={newProjectForm.location}
+                  onChange={(e) => setNewProjectForm(prev => ({ ...prev, location: e.target.value }))}
+                  className="border border-black px-3 py-2 bg-white text-black focus:outline-none focus:ring-1 focus:ring-black"
+                  required
+                />
+                <input
+                  type="number"
+                  placeholder="CO2 Reduction Capacity (tons)"
+                  value={newProjectForm.co2ReductionCapacity || ''}
+                  onChange={(e) => setNewProjectForm(prev => ({ ...prev, co2ReductionCapacity: parseInt(e.target.value) || 0 }))}
+                  className="border border-black px-3 py-2 bg-white text-black focus:outline-none focus:ring-1 focus:ring-black"
+                  required
+                />
+                <select 
+                  value={newProjectForm.projectType}
+                  onChange={(e) => setNewProjectForm(prev => ({ ...prev, projectType: parseInt(e.target.value) }))}
+                  className="border border-black px-3 py-2 bg-white text-black focus:outline-none focus:ring-1 focus:ring-black"
+                  required
+                >
+                  <option value={0}>Forest Conservation</option>
+                  <option value={1}>Renewable Energy</option>
+                  <option value={2}>Ecosystem Restoration</option>
+                  <option value={3}>Clean Technology</option>
+                </select>
+              </div>
+              <textarea
+                placeholder="Project Description"
+                value={newProjectForm.description}
+                onChange={(e) => setNewProjectForm(prev => ({ ...prev, description: e.target.value }))}
+                rows={3}
+                className="w-full border border-black px-3 py-2 mb-4 bg-white text-black focus:outline-none focus:ring-1 focus:ring-black"
+                required
+              ></textarea>
               <input
                 type="text"
-                placeholder="Project Name"
-                className="border border-black px-3 py-2 bg-white text-black focus:outline-none focus:ring-1 focus:ring-black"
+                placeholder="Oracle Data Source (optional)"
+                value={newProjectForm.oracleDataSource}
+                onChange={(e) => setNewProjectForm(prev => ({ ...prev, oracleDataSource: e.target.value }))}
+                className="w-full border border-black px-3 py-2 mb-4 bg-white text-black focus:outline-none focus:ring-1 focus:ring-black"
               />
-              <input
-                type="text"
-                placeholder="Location"
-                className="border border-black px-3 py-2 bg-white text-black focus:outline-none focus:ring-1 focus:ring-black"
-              />
-              <input
-                type="number"
-                placeholder="CO2 Amount (tons)"
-                className="border border-black px-3 py-2 bg-white text-black focus:outline-none focus:ring-1 focus:ring-black"
-              />
-              <input
-                type="number"
-                placeholder="Price (USD)"
-                className="border border-black px-3 py-2 bg-white text-black focus:outline-none focus:ring-1 focus:ring-black"
-              />
-            </div>
-            <select className="w-full border border-black px-3 py-2 mb-4 bg-white text-black focus:outline-none focus:ring-1 focus:ring-black">
-              {projectTypes.slice(1).map(type => (
-                <option key={type} value={type}>{type}</option>
-              ))}
-            </select>
-            <textarea
-              placeholder="Project Description"
-              rows={3}
-              className="w-full border border-black px-3 py-2 mb-4 bg-white text-black focus:outline-none focus:ring-1 focus:ring-black"
-            ></textarea>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setShowListForm(false)}
-                className="bg-black text-white px-4 py-2 border border-black hover:bg-white hover:text-black transition-colors"
-              >
-                List Credit
-              </button>
-              <button
-                onClick={() => setShowListForm(false)}
-                className="bg-white text-black px-4 py-2 border border-black hover:bg-black hover:text-white transition-colors"
-              >
-                Cancel
-              </button>
-            </div>
+              <div className="flex gap-2">
+                <button
+                  type="submit"
+                  disabled={registerLoading}
+                  className="bg-black text-white px-4 py-2 border border-black hover:bg-white hover:text-black transition-colors disabled:opacity-50"
+                >
+                  {registerLoading ? 'Registering...' : 'Register Project'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowListForm(false)}
+                  className="bg-white text-black px-4 py-2 border border-black hover:bg-black hover:text-white transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
           </div>
         )}
 
@@ -306,16 +334,11 @@ export default function MarketplacePage() {
                     <p className="text-sm text-gray-600">per ton CO2</p>
                   </div>
                   <button
-                    onClick={() => handlePurchase(credit.id)}
-                    disabled={!canTransact}
-                    className={`px-4 py-2 border border-black transition-colors ${
-                      canTransact
-                        ? 'bg-black text-white hover:bg-white hover:text-black'
-                        : 'bg-gray-300 text-gray-500 border-gray-300 cursor-not-allowed'
-                    }`}
-                    title={!canTransact ? 'Please activate your wallet first' : 'Buy this carbon credit'}
+                    onClick={() => handlePurchase(credit.id, credit.price)}
+                    disabled={buyLoading}
+                    className="bg-black text-white px-4 py-2 border border-black hover:bg-white hover:text-black transition-colors disabled:opacity-50"
                   >
-                    {canTransact ? 'Buy Credit' : 'Wallet Required'}
+                    {buyLoading ? 'Buying...' : 'Buy Credit'}
                   </button>
                 </div>
               </div>
