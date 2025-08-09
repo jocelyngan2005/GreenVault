@@ -84,6 +84,7 @@ export default function Navigation({ children, theme = 'light' }: NavigationProp
       return [
         { href: '/credit-buyer', label: 'Dashboard' },
         { href: '/credit-buyer/marketplace', label: 'Marketplace' },
+        { href: '/credit-buyer/assets', label: 'My Assets' },
         { href: '/credit-buyer/cart', label: 'Cart', badge: cartCount > 0 ? cartCount : undefined },
       ];
     }

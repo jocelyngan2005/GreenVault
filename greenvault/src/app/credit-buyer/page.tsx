@@ -68,6 +68,14 @@ export default function CreditBuyerDashboard() {
   ]);
 
 
+  // Define OwnedNFT type for demo purposes
+  interface OwnedNFT {
+    id: string;
+    name: string;
+    image: string;
+    description: string;
+    // Add other fields as needed
+  }
   const [ownedNFTs, setOwnedNFTs] = useState<OwnedNFT[]>([]);
   // Load ownedNFTs and recentPurchases from localStorage (simulate demo)
   useEffect(() => {

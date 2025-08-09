@@ -353,17 +353,6 @@ export default function CreditBuyerMarketplace() {
   const projectTypes = ['All', 'Forest Conservation', 'Renewable Energy', 'Ecosystem Restoration', 'Clean Cooking', 'Agriculture'];
 
   const addToCart = (project: ProjectNFT, quantity: number = 1) => {
-    // Check if wallet is ready for transactions
-    if (!canTransact) {
-      alert('Please activate your Sui wallet first to add items to cart.');
-      return;
-    }
-
-    if (!wallet) {
-      alert('Wallet not available. Please activate your wallet.');
-      return;
-    }
-
     // Convert ProjectNFT to CarbonCredit format for cart
     const credit: CarbonCredit = {
       id: project.id,
@@ -380,10 +369,156 @@ export default function CreditBuyerMarketplace() {
     const success = cartUtils.addToCart(credit, quantity);
 
     if (success) {
-      // Show success feedback with wallet info
-      alert(`Added ${quantity} credit(s) from ${project.projectName} to cart!\n\nWallet: ${wallet.address}\nBalance: ${wallet.balance.toFixed(4)} SUI`);
+      // Show success feedback
+      if (wallet && canTransact) {
+        alert(`Added ${quantity} credit(s) from ${project.projectName} to cart!\n\nWallet: ${wallet.address}\nBalance: ${wallet.balance.toFixed(4)} SUI`);
+      } else {
+        alert(`Added ${quantity} credit(s) from ${project.projectName} to cart!\n\nNote: You'll need to activate your wallet before checkout.`);
+      }
     } else {
       alert('Failed to add item to cart. Please try again.');
+    }
+  };
+
+  const buyNow = async (project: ProjectNFT, quantity: number = 1) => {
+    // Check if wallet is ready for transactions
+    if (!canTransact) {
+      alert('Please activate your Sui wallet first to make a purchase.');
+      return;
+    }
+
+    if (!wallet) {
+      alert('Wallet not available. Please activate your wallet.');
+      return;
+    }
+
+    const totalPrice = project.priceInCredits * quantity;
+    
+    // Confirm purchase
+    const confirmPurchase = confirm(
+      `Confirm Purchase:\n\n` +
+      `Project: ${project.projectName}\n` +
+      `Quantity: ${quantity} NFT(s)\n` +
+      `Price: ${totalPrice} credits total\n` +
+      `CO₂ Impact: ${project.realWorldCO2Impact * quantity} tons\n\n` +
+      `Proceed with purchase?`
+    );
+
+    if (!confirmPurchase) return;
+
+    try {
+      // Helper function to convert UUID to Sui object ID format
+      const convertToSuiObjectId = (uuid: string): string => {
+        const cleanId = uuid.replace(/-/g, '');
+        const paddedId = cleanId.padStart(64, '0');
+        return '0x' + paddedId;
+      };
+
+      const suiObjectId = convertToSuiObjectId(project.id);
+      
+      // Call smart contract to buy the credit
+      const result = await smartContractService.buyCarbonCredit({
+        creditId: suiObjectId,
+        paymentAmount: totalPrice
+      });
+
+      if (result.success) {
+        // Use the real Sui object ID from the transaction events if available
+        let realObjectId = suiObjectId;
+        
+        // For real transactions (not mock), try to extract the actual object ID
+        if (result.success && !result.data?.note?.includes('mock')) {
+          if (result.events && Array.isArray(result.events)) {
+            // Try to find a created object event
+            const created = result.events.find((ev: any) => ev.type === 'newObject' && ev.objectId);
+            if (created && created.objectId) {
+              realObjectId = created.objectId;
+            } else {
+              // Try to find in objectChanges
+              if (result.objectChanges && Array.isArray(result.objectChanges)) {
+                const objChange = result.objectChanges.find((oc: any) => oc.objectType && oc.objectId && oc.objectType.includes('CarbonCredit'));
+                if (objChange && objChange.objectId) {
+                  realObjectId = objChange.objectId;
+                }
+              }
+            }
+          }
+        }
+
+        // Save purchased NFT to localStorage
+        if (typeof window !== 'undefined') {
+          const newNFT = {
+            id: realObjectId,
+            projectName: project.projectName,
+            co2Amount: project.realWorldCO2Impact,
+            origin: project.location,
+            status: 'active',
+            datePurchased: new Date().toISOString(),
+            nftCount: quantity,
+            projectType: project.projectType,
+            verification: project.verified ? 'Verified' : 'Unverified',
+            region: project.location,
+            purchasePrice: project.priceInCredits,
+            currentValue: project.priceInCredits,
+          };
+
+          // Add to purchased NFTs
+          const existingNFTs = localStorage.getItem('purchasedNFTs');
+          let nftsArr = [];
+          if (existingNFTs) {
+            try { nftsArr = JSON.parse(existingNFTs); } catch { nftsArr = []; }
+          }
+          nftsArr.push(newNFT);
+          localStorage.setItem('purchasedNFTs', JSON.stringify(nftsArr));
+
+          // Add to recent purchases
+          const newPurchase = {
+            id: realObjectId,
+            projectName: project.projectName,
+            amount: project.realWorldCO2Impact * quantity,
+            price: project.priceInCredits,
+            date: new Date().toISOString(),
+            status: 'completed',
+          };
+
+          const existingPurchases = localStorage.getItem('recentPurchases');
+          let purchasesArr = [];
+          if (existingPurchases) {
+            try { purchasesArr = JSON.parse(existingPurchases); } catch { purchasesArr = []; }
+          }
+          purchasesArr.push(newPurchase);
+          localStorage.setItem('recentPurchases', JSON.stringify(purchasesArr));
+        }
+
+        alert(
+          `Purchase Successful! 🎉\n\n` +
+          `✅ ${quantity} NFT(s) from ${project.projectName}\n` +
+          `🌱 ${project.realWorldCO2Impact * quantity} tons CO₂ offset\n` +
+          `💰 ${totalPrice} credits spent\n\n` +
+          `Your carbon credits have been added to your portfolio!`
+        );
+
+        // Update the project's available NFTs (optimistic update)
+        setProjectNFTs(prev => prev.map(p => 
+          p.id === project.id 
+            ? { ...p, availableNFTs: Math.max(0, p.availableNFTs - quantity) }
+            : p
+        ));
+
+      } else {
+        let errorMsg = result.error || 'Unknown error';
+        if (errorMsg.includes('E_INVALID_PROJECT') || errorMsg.includes('MoveAbort') || errorMsg.includes('error code 5')) {
+          errorMsg = `Credit "${project.projectName}" is not available for purchase. This might be because the credit needs to be properly minted and listed for sale first.`;
+        }
+        alert('Purchase failed: ' + errorMsg + '\n\nNote: In development, credits need to be properly minted and listed for sale before they can be purchased.');
+      }
+    } catch (error) {
+      const errorStr = error instanceof Error ? error.message : 'Unknown error';
+      let errorMsg = errorStr;
+      if (errorStr.includes('E_INVALID_PROJECT') || errorStr.includes('MoveAbort') || errorStr.includes('error code 5')) {
+        errorMsg = `Credit "${project.projectName}" is not available for purchase. This might be because the credit needs to be properly minted and listed for sale first.`;
+      }
+      alert('Purchase failed: ' + errorMsg + '\n\nNote: In development, credits need to be properly minted and listed for sale before they can be purchased.');
     }
   };
 
@@ -603,13 +738,8 @@ export default function CreditBuyerMarketplace() {
                     />
                     <button
                       onClick={() => addToCart(project, 1)}
-                      disabled={!canTransact}
-                      className={`bg-green-600 text-white px-4 py-2 text-sm transition-colors ${
-                        canTransact 
-                          ? 'hover:bg-green-700' 
-                          : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                      }`}
-                      title={!canTransact ? 'Please activate your wallet first' : 'Add to cart'}
+                      className="bg-green-600 text-white px-4 py-2 text-sm hover:bg-green-700 transition-colors"
+                      title="Add to cart"
                     >
                       Add to Cart
                     </button>
@@ -623,7 +753,7 @@ export default function CreditBuyerMarketplace() {
                       View Details
                     </Link>
                     <button 
-                      onClick={() => addToCart(project, 1)}
+                      onClick={() => buyNow(project, 1)}
                       disabled={!canTransact}
                       className={`px-4 py-2 text-sm border border-black transition-colors ${
                         canTransact
