@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Navigation from '@/components/Navigation';
 import VaultSecretsManager from '@/components/VaultSecretsManager';
+import { loadUnifiedUserData, generateVaultKey, storeUnifiedUserData, loadUnifiedUserDataWithServerSync } from '@/lib/auth/user-data-sync';
 
 interface UserProfile {
   name: string;
@@ -45,62 +46,28 @@ export default function ProfilePage() {
     try {
       setIsLoading(true);
       
-      // Get user data from localStorage
-      const userDataStr = localStorage.getItem('user-data');
-      const zkLoginDataStr = localStorage.getItem('zklogin-data');
-      const userTokenStr = localStorage.getItem('user-token');
+      // Use unified user data loader with server sync to get DID
+      const unifiedUserData = await loadUnifiedUserDataWithServerSync();
       
-      let loadedProfile: Partial<UserProfile> = {};
-      let loadedUserId = '';
-      let loadedUserKey = '';
-      
-      if (userDataStr) {
-        // Regular login user
-        try {
-          const userData = JSON.parse(userDataStr);
-          loadedUserId = userData.id;
-          loadedUserKey = `vault-${userData.id}-consistent`;
-          loadedProfile = {
-            name: userData.name || '',
-            email: userData.email || '',
-            walletAddress: userData.walletAddress || '',
-            didAddress: userData.did || '',
-            joinDate: userData.createdAt || new Date().toISOString().split('T')[0]
-          };
-        } catch (error) {
-          console.error('Error parsing user data:', error);
-        }
-      } else if (zkLoginDataStr) {
-        // zkLogin user
-        try {
-          const zkLoginData = JSON.parse(zkLoginDataStr);
-          loadedUserId = zkLoginData.userAddress || zkLoginData.sub;
-          loadedUserKey = `vault-${loadedUserId}-consistent`;
-          loadedProfile = {
-            name: zkLoginData.name || zkLoginData.given_name || '',
-            email: zkLoginData.email || '',
-            walletAddress: zkLoginData.userAddress || '',
-            didAddress: zkLoginData.did || '',
-            joinDate: zkLoginData.createdAt || new Date().toISOString().split('T')[0]
-          };
-        } catch (error) {
-          console.error('Error parsing zkLogin data:', error);
-        }
-      } else if (userTokenStr) {
-        // Try to decode user token
-        try {
-          const tokenData = JSON.parse(atob(userTokenStr.split('.')[1]));
-          loadedUserId = tokenData.id;
-          loadedUserKey = `vault-${tokenData.id}-consistent`;
-          loadedProfile = {
-            name: tokenData.name || '',
-            email: tokenData.email || '',
-            joinDate: tokenData.createdAt || new Date().toISOString().split('T')[0]
-          };
-        } catch (error) {
-          console.error('Error parsing user token:', error);
-        }
+      if (!unifiedUserData) {
+        // No user data found, redirect to login
+        console.log('No user data found, redirecting to login');
+        router.push('/login');
+        return;
       }
+      
+      // Set user ID and key for vault operations
+      const loadedUserId = unifiedUserData.id;
+      const loadedUserKey = generateVaultKey(loadedUserId);
+      
+      // Set profile data
+      const loadedProfile: Partial<UserProfile> = {
+        name: unifiedUserData.name || '',
+        email: unifiedUserData.email || '',
+        walletAddress: unifiedUserData.walletAddress || unifiedUserData.userAddress || '',
+        didAddress: unifiedUserData.did || '',
+        joinDate: unifiedUserData.createdAt ? new Date(unifiedUserData.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]
+      };
 
       // Get user role from localStorage
       const role = localStorage.getItem('user-role') as 'project-owner' | 'credit-buyer' | null;
@@ -114,13 +81,9 @@ export default function ProfilePage() {
         role
       }));
       
-      // If we don't have user data, redirect to login
-      if (!loadedUserId) {
-        router.push('/login');
-      }
-      
     } catch (error) {
       console.error('Error loading user data:', error);
+      router.push('/login');
     } finally {
       setIsLoading(false);
     }
@@ -140,33 +103,41 @@ export default function ProfilePage() {
     try {
       setIsLoading(true);
       
-      // Update localStorage with new profile data (only editable fields)
-      const userDataStr = localStorage.getItem('user-data');
-      const zkLoginDataStr = localStorage.getItem('zklogin-data');
-      
-      if (userDataStr) {
-        // Regular user data
-        const userData = JSON.parse(userDataStr);
-        const updatedData = {
-          ...userData,
-          name: userProfile.name,
-          email: userProfile.email
-          // Don't update walletAddress or did - they're read-only
-        };
-        localStorage.setItem('user-data', JSON.stringify(updatedData));
-      } else if (zkLoginDataStr) {
-        // zkLogin user data
-        const zkLoginData = JSON.parse(zkLoginDataStr);
-        const updatedData = {
-          ...zkLoginData,
-          name: userProfile.name,
-          email: userProfile.email
-          // Don't update walletAddress or did - they're read-only
-        };
-        localStorage.setItem('zklogin-data', JSON.stringify(updatedData));
+      // Get current unified user data
+      const currentUserData = loadUnifiedUserData();
+      if (!currentUserData) {
+        throw new Error('No user data found');
       }
       
-      // Don't save role - it's read-only and set during onboarding
+      // Update only the editable fields
+      const updatedUserData = {
+        ...currentUserData,
+        name: userProfile.name,
+        email: userProfile.email
+        // Don't update walletAddress or did - they're read-only
+      };
+      
+      // Store the updated unified data
+      storeUnifiedUserData(updatedUserData);
+      
+      // Also update the legacy zkLogin data if it exists (for backward compatibility)
+      const zkLoginDataStr = localStorage.getItem('zklogin-data');
+      if (zkLoginDataStr) {
+        try {
+          const zkLoginData = JSON.parse(zkLoginDataStr);
+          const updatedZkLoginData = {
+            ...zkLoginData,
+            decodedJwt: {
+              ...zkLoginData.decodedJwt,
+              name: userProfile.name,
+              email: userProfile.email
+            }
+          };
+          localStorage.setItem('zklogin-data', JSON.stringify(updatedZkLoginData));
+        } catch (error) {
+          console.error('Error updating zkLogin data:', error);
+        }
+      }
       
       setHasUnsavedChanges(false);
       alert('Profile updated successfully!');

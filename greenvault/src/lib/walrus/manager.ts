@@ -847,7 +847,7 @@ export class EnhancedWalrusAccountManager {
         console.error('[walrus-manager] Enhanced localStorage fallback failed:', localStorageError);
         
         // Fallback to simple localStorage if the enhanced version fails
-        const fallbackId = `simple_fallback_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        const fallbackId = `vault-${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
         
         if (typeof window !== 'undefined' && window.localStorage) {
           localStorage.setItem(fallbackId, data);
@@ -870,8 +870,8 @@ export class EnhancedWalrusAccountManager {
       
     } else if (operation === 'retrieve' && blobId) {
       try {
-        // Try enhanced LocalStorageFallback first
-        if (blobId.includes('greenvault_fallback_')) {
+        // Try enhanced LocalStorageFallback first (support both old and new prefixes)
+        if (blobId.includes('vault-')) {
           const fallbackUserKey = await this.deriveKeyFromId(blobId);
           const data = await LocalStorageFallback.retrieve(blobId, fallbackUserKey);
           console.log('[walrus-manager] Data retrieved from encrypted localStorage fallback');

@@ -3,6 +3,7 @@
 import React from 'react';
 import { useState, useEffect } from 'react';
 import type { ZkLoginData, ZkLoginState, LoginCredentials, AuthResponse } from '@/types/zklogin';
+import { storeUnifiedUserData, type UnifiedUserData } from '@/lib/auth/user-data-sync';
 import Link from 'next/link';
 
 // Google OAuth configuration
@@ -80,9 +81,24 @@ export default function LoginPage() {
 
         // Store zkLogin data for use in other pages
         localStorage.setItem('zklogin-data', JSON.stringify(zkLoginData));
+        
+        // Store user data in unified format using the utility
+        const unifiedUserData: UnifiedUserData = {
+          id: zkLoginData.decodedJwt.sub, // Use Google sub as user ID
+          email: zkLoginData.decodedJwt.email,
+          name: zkLoginData.decodedJwt.name || zkLoginData.decodedJwt.given_name,
+          walletAddress: zkLoginData.userAddress,
+          userAddress: zkLoginData.userAddress,
+          did: authResult.didInfo?.did,
+          createdAt: new Date().toISOString(),
+          authType: 'zklogin',
+          provider: 'google'
+        };
+        
+        storeUnifiedUserData(unifiedUserData);
 
         // Check and setup vault for user
-        await checkAndSetupVault(zkLoginData);
+        await checkAndSetupVault(unifiedUserData);
 
         // Check if user has a role preference, otherwise go to role selection
         const userRole = localStorage.getItem('user-role');
@@ -218,7 +234,19 @@ export default function LoginPage() {
 
       // Store authentication token
       localStorage.setItem('auth-token', result.data!.token);
-      localStorage.setItem('user-data', JSON.stringify(result.data!.user));
+      
+      // Store user data in unified format using the utility
+      const unifiedUserData: UnifiedUserData = {
+        id: result.data!.user.id,
+        email: result.data!.user.email,
+        name: result.data!.user.name,
+        walletAddress: result.data!.user.walletAddress,
+        did: result.data!.user.did,
+        createdAt: result.data!.user.createdAt,
+        authType: 'email'
+      };
+      
+      storeUnifiedUserData(unifiedUserData);
 
       // Check and setup vault for user
       await checkAndSetupVault(result.data!.user);

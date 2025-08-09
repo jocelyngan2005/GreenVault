@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import type { SignupCredentials, AuthResponse, ZkLoginData, ZkLoginState } from '@/types/zklogin';
+import { storeUnifiedUserData } from '@/lib/auth/user-data-sync';
 
 // Google OAuth configuration
 const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
@@ -72,7 +73,8 @@ export default function SignupPage() {
           throw new Error(errorData.error || 'Authentication failed');
         }
 
-        const { data: zkLoginData } = await authResponse.json() as { data: ZkLoginData };
+        const authResult = await authResponse.json();
+        const { data: zkLoginData, didInfo } = authResult;
 
         setZkLoginData(zkLoginData);
         setUserAddress(zkLoginData.userAddress);
@@ -80,6 +82,21 @@ export default function SignupPage() {
 
         // Store zkLogin data for use in other pages
         localStorage.setItem('zklogin-data', JSON.stringify(zkLoginData));
+
+        // Store unified user data for consistent profile access (including DID)
+        if (zkLoginData.decodedJwt) {
+          storeUnifiedUserData({
+            id: zkLoginData.decodedJwt.sub,
+            email: zkLoginData.decodedJwt.email || '',
+            name: zkLoginData.decodedJwt.name || zkLoginData.decodedJwt.given_name,
+            walletAddress: zkLoginData.userAddress,
+            userAddress: zkLoginData.userAddress,
+            did: didInfo?.did, // Include DID from server response
+            createdAt: new Date().toISOString(),
+            authType: 'zklogin',
+            provider: 'google'
+          });
+        }
 
         window.location.href = '/onboarding'; // Redirect to onboarding for vault setup
 

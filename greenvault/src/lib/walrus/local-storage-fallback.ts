@@ -16,7 +16,7 @@ export interface FallbackStorageItem {
 }
 
 export class LocalStorageFallback {
-  private static readonly STORAGE_PREFIX = 'greenvault_fallback_';
+  private static readonly STORAGE_PREFIX = '';
   private static readonly MAX_ITEMS = 100; // Prevent localStorage from growing too large
   
   /**

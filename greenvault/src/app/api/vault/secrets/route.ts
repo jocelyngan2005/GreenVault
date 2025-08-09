@@ -37,8 +37,25 @@ export async function GET(request: NextRequest) {
 
     console.log('[vault-secrets] Retrieving secrets for user:', userId);
 
-    // Get user's vault blob ID
-    const vaultData = await vaultService.getUserVault(userId, userKey);
+    // Get user's vault blob ID, creating one if it doesn't exist
+    let vaultData = await vaultService.getUserVault(userId, userKey);
+    
+    if (!vaultData || !vaultData.blobId) {
+      // No vault exists yet, initialize one for the user
+      console.log('[vault-secrets] No vault found, initializing new vault for user:', userId);
+      const initResult = await vaultService.initializeUserVault(userId, userKey, 'email');
+      
+      if (!initResult || !initResult.blobId) {
+        console.error('[vault-secrets] Failed to initialize vault for user:', userId);
+        return NextResponse.json({
+          success: false,
+          error: 'Failed to initialize user vault'
+        }, { status: 500 });
+      }
+
+      // Get the newly created vault data
+      vaultData = await vaultService.getUserVault(userId, userKey);
+    }
     
     if (!vaultData || !vaultData.secretsBlobId) {
       // No secrets stored yet

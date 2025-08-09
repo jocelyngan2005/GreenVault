@@ -21,6 +21,7 @@ export class VaultRegistry {
   private walrusManager: EnhancedWalrusAccountManager;
   private registryBlobId: string | null = null;
   private registryFile: string;
+  private registryBlobIdFile: string;
   private useFileStorage = false;
 
   constructor() {
@@ -33,7 +34,42 @@ export class VaultRegistry {
     });
 
     // Set up file-based fallback
-    this.registryFile = path.join(process.cwd(), 'vault-registry.json');
+    this.registryFile = path.join(process.cwd(), 'data/vault-registry.json');
+    this.registryBlobIdFile = path.join(process.cwd(), 'data/vault-registry-id.txt');
+
+    // Start with file storage for reliability, can upgrade to Walrus later if needed
+    this.useFileStorage = true;
+    
+    // Load existing registry blob ID if it exists
+    this.loadRegistryBlobId();
+  }
+
+  /**
+   * Load the registry blob ID from persistent storage
+   */
+  private loadRegistryBlobId(): void {
+    try {
+      if (fs.existsSync(this.registryBlobIdFile)) {
+        this.registryBlobId = fs.readFileSync(this.registryBlobIdFile, 'utf-8').trim();
+        console.log('[vault-registry] Loaded existing registry blob ID:', this.registryBlobId);
+      }
+    } catch (error) {
+      console.log('[vault-registry] Failed to load registry blob ID, starting fresh:', error);
+      this.registryBlobId = null;
+    }
+  }
+
+  /**
+   * Save the registry blob ID to persistent storage
+   */
+  private saveRegistryBlobId(blobId: string): void {
+    try {
+      fs.writeFileSync(this.registryBlobIdFile, blobId, 'utf-8');
+      this.registryBlobId = blobId;
+      console.log('[vault-registry] Saved registry blob ID:', blobId);
+    } catch (error) {
+      console.error('[vault-registry] Failed to save registry blob ID:', error);
+    }
   }
 
   /**
@@ -103,7 +139,7 @@ export class VaultRegistry {
       } else {
         // Try Walrus storage
         const blobId = await this.walrusManager.storeString(registryData);
-        this.registryBlobId = blobId;
+        this.saveRegistryBlobId(blobId); // Persist the blob ID
         console.log('[vault-registry] Registry saved successfully with blob ID:', blobId);
       }
     } catch (error) {
