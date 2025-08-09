@@ -134,7 +134,7 @@ export class WalrusVaultManager {
         sealedData = await this.walrusManager.retrieveString(blobId);
         console.log('[walrus-vault-manager] Vault retrieved successfully from Walrus');
       } catch (walrusError) {
-        console.warn('[walrus-vault-manager] Walrus retrieval failed, trying server:', walrusError);
+        console.warn('[walrus-vault-manager] Walrus retrieval failed, trying server');
         
         // Try server storage
         const fs = require('fs');
@@ -167,7 +167,7 @@ export class WalrusVaultManager {
       return vaultData;
 
     } catch (error) {
-      console.error('[walrus-vault-manager] Failed to retrieve vault:', error);
+      console.error('[walrus-vault-manager] Failed to retrieve vault');
       throw error;
     }
   }
@@ -423,7 +423,7 @@ export class WalrusVaultManager {
       };
 
     } catch (error) {
-      console.error('[walrus-vault-manager] Vault integrity check failed:', error);
+      console.error('[walrus-vault-manager] Vault integrity check failed');
       return {
         isValid: false,
         issues: [`Vault access failed: ${error instanceof Error ? error.message : 'Unknown error'}`]

@@ -59,7 +59,7 @@ export class LocalStorageFallback {
       
       return fallbackId;
     } catch (error) {
-      console.error('[local-fallback] Failed to store in localStorage:', error);
+      console.error('[local-fallback] Failed to store in localStorage');
       throw new Error(`Local storage fallback failed: ${error}`);
     }
   }

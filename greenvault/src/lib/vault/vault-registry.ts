@@ -12,6 +12,7 @@ import path from 'path';
 export interface VaultRegistryEntry {
   userId: string;
   blobId: string;
+  secretsBlobId?: string;
   createdAt: string;
   lastAccessed: string;
   authType: 'email' | 'zklogin';
@@ -54,7 +55,7 @@ export class VaultRegistry {
         console.log('[vault-registry] Loaded existing registry blob ID:', this.registryBlobId);
       }
     } catch (error) {
-      console.log('[vault-registry] Failed to load registry blob ID, starting fresh:', error);
+      console.log('[vault-registry] Failed to load registry blob ID, starting fresh');
       this.registryBlobId = null;
     }
   }
@@ -68,7 +69,7 @@ export class VaultRegistry {
       this.registryBlobId = blobId;
       console.log('[vault-registry] Saved registry blob ID:', blobId);
     } catch (error) {
-      console.error('[vault-registry] Failed to save registry blob ID:', error);
+      console.error('[vault-registry] Failed to save registry blob ID');
     }
   }
 
@@ -114,13 +115,13 @@ export class VaultRegistry {
     } catch (error) {
       // If Walrus fails, fall back to file storage
       if (!this.useFileStorage) {
-        console.log('[vault-registry] Walrus failed, falling back to file storage:', error);
+        console.log('[vault-registry] Walrus failed, falling back to file storage');
         this.useFileStorage = true;
         return await this.getRegistry(); // Recursive call with file storage
       }
 
       // Registry doesn't exist yet, return empty array
-      console.log('[vault-registry] No existing registry found, starting fresh:', error);
+      console.log('[vault-registry] No existing registry found, starting fresh');
       return [];
     }
   }
@@ -145,7 +146,7 @@ export class VaultRegistry {
     } catch (error) {
       // If Walrus fails, fall back to file storage
       if (!this.useFileStorage) {
-        console.log('[vault-registry] Walrus failed, falling back to file storage:', error);
+        console.log('[vault-registry] Walrus failed, falling back to file storage');
         this.useFileStorage = true;
         await this.saveRegistry(registry); // Recursive call with file storage
         return;
@@ -216,6 +217,68 @@ export class VaultRegistry {
     }
 
     console.log('[vault-registry] No existing vault found for user:', userId);
+    return null;
+  }
+
+  /**
+   * Update or set the secrets blob ID for a user's vault
+   */
+  async updateSecretsBlobId(userId: string, secretsBlobId: string): Promise<void> {
+    console.log('[vault-registry] Updating secrets blob ID for user:', userId, 'secretsBlobId:', secretsBlobId);
+
+    const registry = await this.getRegistry();
+    const entryIndex = registry.findIndex(entry => entry.userId === userId);
+
+    if (entryIndex !== -1) {
+      // Update existing entry
+      registry[entryIndex].secretsBlobId = secretsBlobId;
+      registry[entryIndex].lastAccessed = new Date().toISOString();
+      
+      await this.saveRegistry(registry);
+      console.log('[vault-registry] Updated secrets blob ID for user:', userId);
+    } else {
+      console.error('[vault-registry] Cannot update secrets blob ID: user not found in registry:', userId);
+      throw new Error(`User vault not found in registry: ${userId}`);
+    }
+  }
+
+  /**
+   * Get the secrets blob ID for a user's vault
+   */
+  async getSecretsBlobId(userId: string): Promise<string | null> {
+    const registry = await this.getRegistry();
+    const entry = registry.find(entry => entry.userId === userId);
+
+    if (entry) {
+      // Update last accessed time
+      entry.lastAccessed = new Date().toISOString();
+      await this.saveRegistry(registry);
+      
+      console.log('[vault-registry] Retrieved secrets blob ID for user:', userId, 'secretsBlobId:', entry.secretsBlobId || 'none');
+      return entry.secretsBlobId || null;
+    }
+
+    console.log('[vault-registry] No secrets blob ID found for user:', userId);
+    return null;
+  }
+
+  /**
+   * Get full vault entry for a user
+   */
+  async getVaultEntry(userId: string): Promise<VaultRegistryEntry | null> {
+    const registry = await this.getRegistry();
+    const entry = registry.find(entry => entry.userId === userId);
+
+    if (entry) {
+      // Update last accessed time
+      entry.lastAccessed = new Date().toISOString();
+      await this.saveRegistry(registry);
+      
+      console.log('[vault-registry] Retrieved vault entry for user:', userId);
+      return entry;
+    }
+
+    console.log('[vault-registry] No vault entry found for user:', userId);
     return null;
   }
 

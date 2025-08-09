@@ -786,7 +786,7 @@ export class EnhancedWalrusAccountManager {
       const response = await Promise.race([fetchPromise, timeoutPromise]);
       
       if (!response.ok) {
-        console.error('[walrus-manager] HTTP retrieve failed:', response.status, response.statusText);
+        console.error('[walrus-manager] HTTP retrieve failed:', response.status);
         throw new Error(`Walrus retrieve failed: ${response.status} ${response.statusText}`);
       }
       
@@ -844,16 +844,35 @@ export class EnhancedWalrusAccountManager {
         return fallbackId;
         
       } catch (localStorageError) {
-        console.error('[walrus-manager] Enhanced localStorage fallback failed:', localStorageError);
+        console.error('[walrus-manager] localStorage fallback failed');
         
-        // Fallback to simple localStorage if the enhanced version fails
+        // Fallback to file storage
         const fallbackId = `vault-${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
         
-        if (typeof window !== 'undefined' && window.localStorage) {
-          localStorage.setItem(fallbackId, data);
-          console.log('[walrus-manager] Data stored in simple localStorage fallback:', fallbackId);
-          return fallbackId;
-        } else {
+        try {
+          // Server-side file storage
+          if (typeof window === 'undefined') {
+            const fs = require('fs');
+            const path = require('path');
+            const FALLBACK_STORAGE_DIR = path.join(process.cwd(), '.walrus-data', 'secrets');
+            
+            if (!fs.existsSync(FALLBACK_STORAGE_DIR)) {
+              fs.mkdirSync(FALLBACK_STORAGE_DIR, { recursive: true });
+            }
+            
+            const filePath = path.join(FALLBACK_STORAGE_DIR, `${fallbackId}.enc`);
+            fs.writeFileSync(filePath, data);
+            console.log('[walrus-manager] Data stored in server file fallback:', fallbackId);
+            return fallbackId;
+          }
+          
+          // Client-side localStorage fallback
+          if (typeof window !== 'undefined' && window.localStorage) {
+            localStorage.setItem(fallbackId, data);
+            console.log('[walrus-manager] Data stored in simple localStorage fallback:', fallbackId);
+            return fallbackId;
+          }
+          
           // Last resort: server memory
           if (typeof globalThis !== 'undefined') {
             if (!(globalThis as any).walrusFallbackStorage) {
@@ -863,22 +882,50 @@ export class EnhancedWalrusAccountManager {
             console.log('[walrus-manager] Data stored in server memory fallback:', fallbackId);
             return fallbackId;
           }
+        } catch (fileError) {
+          console.error('[walrus-manager] File storage fallback failed');
         }
         
         throw new Error('All fallback storage methods failed');
       }
       
     } else if (operation === 'retrieve' && blobId) {
-      try {
-        // Try enhanced LocalStorageFallback first (support both old and new prefixes)
-        if (blobId.includes('vault-')) {
+      let lastError: Error | null = null;
+      
+      // Try enhanced LocalStorageFallback first (support both old and new prefixes)
+      if (blobId.includes('vault-')) {
+        try {
           const fallbackUserKey = await this.deriveKeyFromId(blobId);
           const data = await LocalStorageFallback.retrieve(blobId, fallbackUserKey);
           console.log('[walrus-manager] Data retrieved from encrypted localStorage fallback');
           return data;
+        } catch (localStorageError) {
+          lastError = localStorageError as Error;
+          console.warn('[walrus-manager] Encrypted localStorage fallback failed');
         }
-        
-        // Try simple localStorage fallback
+      }
+      
+      // Try server file storage
+      try {
+        if (typeof window === 'undefined') {
+          const fs = require('fs');
+          const path = require('path');
+          const FALLBACK_STORAGE_DIR = path.join(process.cwd(), '.walrus-data', 'secrets');
+          const filePath = path.join(FALLBACK_STORAGE_DIR, `${blobId}.enc`);
+          
+          if (fs.existsSync(filePath)) {
+            const data = fs.readFileSync(filePath, 'utf-8');
+            console.log('[walrus-manager] Data retrieved from server file fallback');
+            return data;
+          }
+        }
+      } catch (fileError) {
+        lastError = fileError as Error;
+        console.warn('[walrus-manager] Server file fallback failed');
+      }
+      
+      // Try simple localStorage fallback
+      try {
         if (typeof window !== 'undefined' && window.localStorage) {
           const data = localStorage.getItem(blobId);
           if (data) {
@@ -886,8 +933,13 @@ export class EnhancedWalrusAccountManager {
             return data;
           }
         }
-        
-        // Try server memory fallback
+      } catch (simpleStorageError) {
+        lastError = simpleStorageError as Error;
+        console.warn('[walrus-manager] Simple localStorage fallback failed');
+      }
+      
+      // Try server memory fallback
+      try {
         if (typeof globalThis !== 'undefined' && (globalThis as any).walrusFallbackStorage) {
           const data = (globalThis as any).walrusFallbackStorage.get(blobId);
           if (data) {
@@ -895,13 +947,13 @@ export class EnhancedWalrusAccountManager {
             return data;
           }
         }
-        
-        throw new Error(`Fallback data not found for ID: ${blobId}`);
-        
-      } catch (retrieveError) {
-        console.error('[walrus-manager] All fallback retrieve methods failed:', retrieveError);
-        throw new Error(`Failed to retrieve fallback data: ${retrieveError}`);
+      } catch (memoryStorageError) {
+        lastError = memoryStorageError as Error;
+        console.warn('[walrus-manager] Server memory fallback failed');
       }
+      
+      console.error('[walrus-manager] All fallback retrieve methods failed');
+      throw new Error(`Failed to retrieve fallback data: ${lastError?.message || 'All methods failed'}`);
     }
     
     throw new Error(`Invalid fallback operation: ${operation}`);

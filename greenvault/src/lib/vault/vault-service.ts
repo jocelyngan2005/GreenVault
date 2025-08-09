@@ -285,31 +285,32 @@ export class VaultService {
     try {
       console.log('[vault-service] Getting vault for user:', userId);
 
-      // Check if user has a vault in the registry
-      const existingBlobId = await vaultRegistry.getVaultBlobId(userId);
+      // Get full vault entry from registry (includes secretsBlobId)
+      const registryEntry = await vaultRegistry.getVaultEntry(userId);
       
-      if (!existingBlobId) {
+      if (!registryEntry) {
         console.log('[vault-service] No vault found for user:', userId);
         return null;
       }
 
       // Try to retrieve the vault to verify it exists
       try {
-        const vault = await this.vaultManager.retrieveVault(existingBlobId, userKey);
+        const vault = await this.vaultManager.retrieveVault(registryEntry.blobId, userKey);
         
-        // Create user vault data structure
+        // Create user vault data structure with secrets blob ID
         const userVaultData: UserVaultData = {
-          blobId: existingBlobId,
+          blobId: registryEntry.blobId,
+          secretsBlobId: registryEntry.secretsBlobId,
           userId: vault.metadata.userId,
           createdAt: vault.metadata.createdAt,
           lastUpdated: vault.metadata.lastUpdated,
           version: vault.metadata.version,
-          // Note: secretsBlobId will be set when secrets are added
         };
 
         console.log('[vault-service] Retrieved vault successfully:', {
           userId,
-          blobId: existingBlobId,
+          blobId: registryEntry.blobId,
+          secretsBlobId: registryEntry.secretsBlobId || 'none',
           totalEntries: vault.entries.length
         });
 
@@ -332,7 +333,7 @@ export class VaultService {
    */
   async updateUserVault(userId: string, userKey: string, updates: Partial<UserVaultData>): Promise<void> {
     try {
-      console.log('[vault-service] Updating vault for user:', userId);
+      console.log('[vault-service] Updating vault for user:', userId, 'updates:', updates);
 
       // Get current vault data
       let currentVault = await this.getUserVault(userId, userKey);
@@ -340,10 +341,11 @@ export class VaultService {
       if (!currentVault) {
         console.log('[vault-service] No existing vault found, creating new vault for user:', userId);
         
-        // Create a new vault when none exists (e.g., during fallback scenarios)
+        // Initialize a new vault when none exists
+        const initResult = await this.initializeUserVault(userId, userKey, 'email');
         currentVault = {
           userId,
-          blobId: '', // Will be set when vault is actually stored
+          blobId: initResult.blobId,
           createdAt: new Date().toISOString(),
           lastUpdated: new Date().toISOString(),
           version: '1.0'
@@ -357,17 +359,16 @@ export class VaultService {
         lastUpdated: new Date().toISOString()
       };
 
-      // Store the updated vault data
-      const vaultData = await this.vaultManager.createVault(userId, userKey);
-      
-      // Update registry with new blob ID if it changed
-      if (vaultData.blobId !== currentVault.blobId) {
-        await vaultRegistry.registerVault(userId, vaultData.blobId, 'email');
+      // If secrets blob ID is being updated, save it to the registry
+      if (updates.secretsBlobId) {
+        await vaultRegistry.updateSecretsBlobId(userId, updates.secretsBlobId);
+        console.log('[vault-service] Updated secrets blob ID in registry:', updates.secretsBlobId);
       }
 
       console.log('[vault-service] Vault updated successfully:', {
         userId,
-        blobId: vaultData.blobId
+        blobId: updatedVaultData.blobId,
+        secretsBlobId: updatedVaultData.secretsBlobId || 'none'
       });
 
     } catch (error) {

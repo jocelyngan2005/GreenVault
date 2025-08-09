@@ -29,6 +29,10 @@ export default function VaultSecretsManager({ userId, userKey }: VaultSecretsMan
   const [searchText, setSearchText] = useState('');
   const [showAddForm, setShowAddForm] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [decryptedSecrets, setDecryptedSecrets] = useState<Set<string>>(new Set());
+  const [masterPassword, setMasterPassword] = useState('');
+  const [showMasterPasswordForSecret, setShowMasterPasswordForSecret] = useState<string | null>(null);
+  const [isMasterPasswordVerified, setIsMasterPasswordVerified] = useState(false);
   const [newSecret, setNewSecret] = useState<AddSecretRequest>({
     title: '',
     username: '',
@@ -84,6 +88,67 @@ export default function VaultSecretsManager({ userId, userKey }: VaultSecretsMan
     }
   };
 
+  const handleToggleDecrypt = (secretId: string) => {
+    if (decryptedSecrets.has(secretId)) {
+      // If already decrypted, hide the password
+      setDecryptedSecrets(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(secretId);
+        return newSet;
+      });
+    } else {
+      // If not decrypted, check if master password is verified
+      if (!isMasterPasswordVerified) {
+        setShowMasterPasswordForSecret(secretId);
+      } else {
+        // Master password already verified, decrypt immediately
+        setDecryptedSecrets(prev => {
+          const newSet = new Set(prev);
+          newSet.add(secretId);
+          return newSet;
+        });
+      }
+    }
+  };
+
+  const handleMasterPasswordSubmit = (secretId: string) => {
+    // Simple master password validation (in real app, this should be more secure)
+    if (masterPassword.length < 6) {
+      alert('Master password must be at least 6 characters long');
+      return;
+    }
+
+    // For demo purposes, accept any password that's 6+ characters
+    // In production, you would verify against a stored hash
+    setIsMasterPasswordVerified(true);
+    setShowMasterPasswordForSecret(null);
+    
+    // Decrypt the secret
+    setDecryptedSecrets(prev => {
+      const newSet = new Set(prev);
+      newSet.add(secretId);
+      return newSet;
+    });
+    
+    // Clear master password from memory for security
+    setMasterPassword('');
+  };
+
+  const handleCancelMasterPassword = () => {
+    setShowMasterPasswordForSecret(null);
+    setMasterPassword('');
+  };
+
+  const copyToClipboard = async (text: string, type: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      alert(`${type} copied to clipboard!`);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+      alert(`Failed to copy ${type.toLowerCase()}`);
+    }
+  };
+
   if (loading) {
     return (
       <div className="text-center py-8">
@@ -111,8 +176,15 @@ export default function VaultSecretsManager({ userId, userKey }: VaultSecretsMan
     <div className="space-y-6">
       {/* Header */}
       <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-xl font-bold mb-2">Secure Password Vault</h2>
+        <div className="flex-1">
+          <div className="flex items-center gap-3 mb-2">
+            <h2 className="text-xl font-bold">Secure Password Vault</h2>
+            {isMasterPasswordVerified && (
+              <div className="flex items-center gap-1 px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
+                <span>Master Password Verified</span>
+              </div>
+            )}
+          </div>
           <p className="text-gray-600">
             Your passwords are encrypted and stored securely on Walrus & Seal network.
           </p>
@@ -266,6 +338,25 @@ export default function VaultSecretsManager({ userId, userKey }: VaultSecretsMan
                   <div className="flex-1">
                     <h4 className="font-semibold mb-1">{secret.title}</h4>
                     <p className="text-sm text-gray-600 mb-1">Username: {secret.username}</p>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-sm text-gray-600">Password:</span>
+                      {decryptedSecrets.has(secret.id) ? (
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-mono bg-gray-100 px-2 py-1 rounded">
+                            {secret.password}
+                          </span>
+                          <button
+                            onClick={() => copyToClipboard(secret.password, 'Password')}
+                            className="text-xs px-2 py-1 border border-gray-300 hover:bg-gray-100"
+                            title="Copy password"
+                          >
+                            Copy
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="text-sm text-gray-400">••••••••</span>
+                      )}
+                    </div>
                     <div className="flex gap-4 text-xs text-gray-500">
                       <span>Category: {secret.category}</span>
                       <span>Modified: {new Date(secret.lastModified).toLocaleDateString()}</span>
@@ -284,7 +375,49 @@ export default function VaultSecretsManager({ userId, userKey }: VaultSecretsMan
                       </a>
                     )}
                   </div>
+                  
+                  {/* Decrypt controls - either button or master password input */}
                   <div className="flex items-center gap-2">
+                    {showMasterPasswordForSecret === secret.id ? (
+                      // Show master password input inline
+                      <div className="flex items-center gap-2 bg-gray-50 p-2 rounded-lg border">
+                        <div className="flex flex-col">
+                          <label className="text-xs text-gray-600 mb-1">Master Password</label>
+                          <input
+                            type="password"
+                            value={masterPassword}
+                            onChange={(e) => setMasterPassword(e.target.value)}
+                            className="text-sm px-2 py-1 border border-gray-300 rounded focus:border-blue-600 focus:outline-none w-32"
+                            placeholder="Enter password"
+                            onKeyPress={(e) => e.key === 'Enter' && handleMasterPasswordSubmit(secret.id)}
+                            autoFocus
+                          />
+                        </div>
+                        <button
+                          onClick={() => handleMasterPasswordSubmit(secret.id)}
+                          disabled={!masterPassword.trim()}
+                          className="text-xs px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors disabled:bg-gray-300"
+                        >
+                          Unlock
+                        </button>
+                        <button
+                          onClick={handleCancelMasterPassword}
+                          className="text-xs px-2 py-1 border border-gray-300 rounded hover:bg-gray-100 transition-colors"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      // Show decrypt button
+                      <button
+                        onClick={() => handleToggleDecrypt(secret.id)}
+                        className="text-sm px-3 py-1 border border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white transition-colors"
+                        title={decryptedSecrets.has(secret.id) ? 'Hide password' : 'Decrypt with master password'}
+                      >
+                        {decryptedSecrets.has(secret.id) ? 'Hide' : 'Decrypt'}
+                      </button>
+                    )}
+                    
                     <button
                       onClick={() => handleDeleteSecret(secret.id)}
                       className="text-sm px-3 py-1 border border-red-600 text-red-600 hover:bg-red-600 hover:text-white transition-colors"

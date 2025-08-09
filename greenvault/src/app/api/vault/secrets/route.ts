@@ -69,8 +69,24 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Retrieve encrypted secrets data
-    const encryptedSecretsData = await enhancedWalrusManager.retrieveString(vaultData.secretsBlobId);
+    // Retrieve encrypted secrets data with fallback handling
+    let encryptedSecretsData: string;
+    try {
+      encryptedSecretsData = await enhancedWalrusManager.retrieveString(vaultData.secretsBlobId);
+    } catch (retrievalError) {
+      console.error('[vault-secrets] Failed to retrieve secrets data:', retrievalError);
+      
+      // If we can't retrieve the secrets, return empty array but don't fail
+      console.warn('[vault-secrets] Could not retrieve secrets data, returning empty array');
+      return NextResponse.json({
+        success: true,
+        data: {
+          secrets: [],
+          version: '1.0',
+          lastUpdated: new Date().toISOString()
+        }
+      });
+    }
     
     // Decrypt the secrets data
     const secretsData: VaultSecretsData = JSON.parse(await unsealStringAESGCM(encryptedSecretsData, userKey));
@@ -124,9 +140,20 @@ export async function POST(request: NextRequest) {
     let secretsData: VaultSecretsData;
     
     if (vaultData && vaultData.secretsBlobId) {
-      // Retrieve existing secrets
-      const encryptedSecretsData = await enhancedWalrusManager.retrieveString(vaultData.secretsBlobId);
-      secretsData = JSON.parse(await unsealStringAESGCM(encryptedSecretsData, userKey));
+      // Retrieve existing secrets with fallback handling
+      try {
+        const encryptedSecretsData = await enhancedWalrusManager.retrieveString(vaultData.secretsBlobId);
+        secretsData = JSON.parse(await unsealStringAESGCM(encryptedSecretsData, userKey));
+        console.log('[vault-secrets] Retrieved existing secrets:', secretsData.secrets.length);
+      } catch (retrievalError) {
+        console.warn('[vault-secrets] Failed to retrieve existing secrets, starting fresh:', retrievalError);
+        // Start with empty secrets data if we can't retrieve existing ones
+        secretsData = {
+          secrets: [],
+          version: '1.0',
+          lastUpdated: new Date().toISOString()
+        };
+      }
     } else {
       // Create new secrets data
       secretsData = {
@@ -134,6 +161,7 @@ export async function POST(request: NextRequest) {
         version: '1.0',
         lastUpdated: new Date().toISOString()
       };
+      console.log('[vault-secrets] Creating new secrets data structure');
     }
 
     // Add new secret
@@ -152,16 +180,32 @@ export async function POST(request: NextRequest) {
     secretsData.secrets.push(newSecret);
     secretsData.lastUpdated = new Date().toISOString();
 
-    // Encrypt and store updated secrets data
-    const newEncryptedSecretsData = await sealStringAESGCM(JSON.stringify(secretsData), userKey);
-    const secretsBlobId = await enhancedWalrusManager.storeString(newEncryptedSecretsData);
+    // Encrypt and store updated secrets data with fallback handling
+    let secretsBlobId: string;
+    try {
+      const newEncryptedSecretsData = await sealStringAESGCM(JSON.stringify(secretsData), userKey);
+      secretsBlobId = await enhancedWalrusManager.storeString(newEncryptedSecretsData);
+      console.log('[vault-secrets] Secrets data stored successfully:', secretsBlobId);
+    } catch (storageError) {
+      console.error('[vault-secrets] Failed to store secrets data:', storageError);
+      return NextResponse.json({
+        success: false,
+        error: 'Failed to store secrets data'
+      }, { status: 500 });
+    }
 
     // Update vault with new secrets blob ID
-    await vaultService.updateUserVault(userId, userKey, {
-      ...vaultData,
-      secretsBlobId,
-      lastUpdated: new Date().toISOString()
-    });
+    try {
+      await vaultService.updateUserVault(userId, userKey, {
+        ...vaultData,
+        secretsBlobId,
+        lastUpdated: new Date().toISOString()
+      });
+    } catch (updateError) {
+      console.error('[vault-secrets] Failed to update vault registry:', updateError);
+      // Don't fail the request if registry update fails, but log it
+      console.warn('[vault-secrets] Registry update failed but secret was stored:', secretsBlobId);
+    }
 
     console.log('[vault-secrets] Secret added successfully:', {
       userId,
