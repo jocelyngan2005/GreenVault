@@ -40,6 +40,25 @@ GreenVault connects local project owners (who supply carbon offset projects) wit
 - Buy NFTs; the CO₂ amount is marked as offset in your profile.
 - Optionally, use the AI assistant to automate monthly offsetting and get recommendations.
 
+## 👩‍💻 Developer Roles 
+
+**June** — Blockchain & Smart Contracts Lead
+   - Develop smart contracts on Sui for carbon credit minting, trading, and project registry
+   - Integrate Oasis trustless oracles for CO₂ data
+   - Optional DID anchoring
+   - Write contract tests & deploy
+
+**Pui Yan** — Identity & Privacy Engineer
+   - Implement zkLogin (email/Google access)
+   - Create and manage DIDs
+   - Build Password & Identity Vault using Walrus & Seal
+   - Handle key encryption/decryption logic
+
+**Jocelyn** — Frontend & AI/UX Lead
+   - Design and develop PWA frontend (Login, Vault, Carbon dashboard)
+   - Implement AI Agent: auto-buy carbon credits, chat-based assistant
+   - Create pitch deck, handle demo UI
+
 #### Summary
 - Local project owners supply and register offset projects, earning recognition and revenue, or use the Vault for secure management of other secrets.
 - Buyers (companies/individuals) offset their own emissions by purchasing verified credits.
@@ -215,25 +234,6 @@ GreenVault promotes environmental sustainability by:
 - Advanced AI features
 - Mobile app development
 - Enhanced analytics and reporting
-
-## 👩‍💻 Developer Roles 
-
-**June** — Blockchain & Smart Contracts Lead
-   - Develop smart contracts on Sui for carbon credit minting, trading, and project registry
-   - Integrate Oasis trustless oracles for CO₂ data
-   - Optional DID anchoring
-   - Write contract tests & deploy
-
-**Pui Yan** — Identity & Privacy Engineer
-   - Implement zkLogin (email/Google access)
-   - Create and manage DIDs
-   - Build Password & Identity Vault using Walrus & Seal
-   - Handle key encryption/decryption logic
-
-**Jocelyn** — Frontend & AI/UX Lead
-   - Design and develop PWA frontend (Login, Vault, Carbon dashboard)
-   - Implement AI Agent: auto-buy carbon credits, chat-based assistant
-   - Create pitch deck, handle demo UI
 
 ## Contributing 🤝
 
