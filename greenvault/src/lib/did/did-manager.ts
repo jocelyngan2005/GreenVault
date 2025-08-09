@@ -4,7 +4,7 @@ import { ZkLoginData, DIDResult } from '@/types/zklogin';
 import { SuiClient, getFullnodeUrl } from '@mysten/sui/client';
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 import { Transaction } from '@mysten/sui/transactions';
-import { suiDIDMethod } from '@/lib/sui-did-method';
+import { suiDIDMethod } from '@/lib/did/sui-did-method';
 
 /**
  * Class for managing Decentralized Identifiers (DIDs) with Sui blockchain integration

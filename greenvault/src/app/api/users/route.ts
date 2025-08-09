@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAllUnifiedUsers, getUserStats } from '@/lib/unifiedUserStore';
+import { getAllUnifiedUsers, getUserStats } from '@/lib/zklogin/unifiedUserStore';
 import { verifyToken } from '@/lib/auth';
 
 export async function GET(request: NextRequest) {

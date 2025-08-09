@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { findUserByEmail } from '@/lib/unifiedUserStore';
+import { findUserByEmail } from '@/lib/zklogin/unifiedUserStore';
 import { verifyToken } from '@/lib/auth';
-import { didManager } from '@/lib/did-manager';
+import { didManager } from '@/lib/did/did-manager';
 
 export async function GET(request: NextRequest) {
   try {

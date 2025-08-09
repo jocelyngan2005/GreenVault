@@ -21,18 +21,6 @@ interface Purchase {
   status: 'completed' | 'pending';
 }
 
-interface OwnedNFT {
-  id: string;
-  projectName: string;
-  co2Amount: number;
-  origin: string;
-  status: 'active' | 'retired';
-  datePurchased: string;
-  nftCount: number;
-  projectType: string;
-  verification: string;
-}
-
 interface CarbonCredit {
   id: string;
   projectName: string;
@@ -79,6 +67,7 @@ export default function CreditBuyerDashboard() {
     }
   ]);
 
+
   const [ownedNFTs, setOwnedNFTs] = useState<OwnedNFT[]>([]);
   // Load ownedNFTs and recentPurchases from localStorage (simulate demo)
   useEffect(() => {
@@ -106,6 +95,7 @@ export default function CreditBuyerDashboard() {
       }
     }
   }, []);
+
 
   const [showGoalModal, setShowGoalModal] = useState(false);
   const [newGoalTarget, setNewGoalTarget] = useState(5);
@@ -221,63 +211,6 @@ export default function CreditBuyerDashboard() {
                 </div>
               </div>
             ))}
-          </div>
-        </div>
-
-        {/* Owned Carbon Credit NFTs */}
-        <div className="mb-8">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-bold">Owned Carbon Credit NFTs</h2>
-            <Link href="/credit-buyer/assets" className="text-sm hover:underline">
-              View All Assets
-            </Link>
-          </div>
-          
-          <div className="border border-black">
-            <div className="bg-gray-50 px-6 py-4 border-b border-black">
-              <p className="text-sm text-gray-600">
-                Total: {ownedNFTs.length} NFTs • Active: {ownedNFTs.filter(nft => nft.status === 'active').length} • Retired: {ownedNFTs.filter(nft => nft.status === 'retired').length}
-              </p>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-6">
-              {ownedNFTs.slice(0, 3).map((nft) => (
-                <div key={nft.id} className="border border-gray-300 p-4 bg-white">
-                  <div className="flex justify-between items-start mb-3">
-                    <div>
-                      <h3 className="font-semibold text-sm mb-1">{nft.projectName}</h3>
-                      <p className="text-xs text-gray-600">{nft.origin}</p>
-                    </div>
-                    <span className={`px-2 py-1 rounded text-xs font-medium ${
-                      nft.status === 'active' 
-                        ? 'text-green-600 bg-green-100' 
-                        : 'text-gray-600 bg-gray-100'
-                    }`}>
-                      {nft.status.toUpperCase()}
-                    </span>
-                  </div>
-                  
-                  <div className="space-y-2 text-xs">
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">CO₂ Amount:</span>
-                      <span className="font-medium">{nft.co2Amount} tons</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">NFT Count:</span>
-                      <span className="font-medium">{nft.nftCount}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Purchased:</span>
-                      <span className="font-medium">{new Date(nft.datePurchased).toLocaleDateString()}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Verification:</span>
-                      <span className="font-medium text-green-600">{nft.verification}</span>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
           </div>
         </div>
 

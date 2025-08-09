@@ -573,29 +573,6 @@ export default function CreditBuyerMarketplace() {
           ))}
         </div>
 
-        {/* Cart Summary */}
-        {cartSummary.itemCount > 0 && (
-          <div className="fixed bottom-4 right-4 bg-black text-white p-4 border border-black max-w-sm">
-            <h3 className="font-bold mb-2">Cart Summary</h3>
-            <p className="text-sm mb-3">
-              {cartSummary.itemCount} items • Total: ${cartSummary.totalAmount.toFixed(2)}
-            </p>
-            <div className="flex gap-2">
-              <Link
-                href="/credit-buyer/cart"
-                className="flex-1 bg-white text-black py-2 px-3 text-sm hover:bg-gray-200 transition-colors text-center"
-              >
-                View Cart
-              </Link>
-              <Link
-                href="/credit-buyer/cart"
-                className="flex-1 bg-green-600 text-white py-2 px-3 text-sm hover:bg-green-700 transition-colors text-center"
-              >
-                Checkout
-              </Link>
-            </div>
-          </div>
-        )}
       </main>
     </Navigation>
   );
