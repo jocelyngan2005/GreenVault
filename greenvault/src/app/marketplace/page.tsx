@@ -1,8 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Navigation from '@/components/Navigation';
+import WalletStatus from '@/components/WalletStatus';
+import { useWalletIntegration } from '@/lib/hooks/useWalletIntegration';
 
 interface CarbonCredit {
   id: string;
@@ -16,6 +18,28 @@ interface CarbonCredit {
 }
 
 export default function MarketplacePage() {
+  // Sample user data - in real app, this would come from authentication context
+  const [currentUser, setCurrentUser] = useState({ 
+    id: 'user123', 
+    email: 'user@example.com' 
+  });
+  
+  // Wallet integration hook
+  const { 
+    wallet, 
+    loading: walletLoading, 
+    error: walletError, 
+    activateWallet, 
+    refreshWallet, 
+    isWalletReady, 
+    canTransact 
+  } = useWalletIntegration({
+    userId: currentUser.id,
+    email: currentUser.email,
+    autoRefresh: true,
+    refreshInterval: 30000
+  });
+
   const [credits] = useState<CarbonCredit[]>([
     {
       id: '1',
@@ -68,24 +92,121 @@ export default function MarketplacePage() {
     ? credits 
     : credits.filter(c => c.projectType === filter);
 
-  const handlePurchase = (creditId: string) => {
-    alert(`Purchase initiated for credit ${creditId}. This would integrate with payment processing.`);
+  const handlePurchase = async (creditId: string) => {
+    if (!canTransact) {
+      alert('Please activate your Sui wallet first to make purchases.');
+      return;
+    }
+
+    if (!wallet) {
+      alert('Wallet not available. Please activate your wallet.');
+      return;
+    }
+
+    const credit = credits.find(c => c.id === creditId);
+    if (!credit) {
+      alert('Credit not found.');
+      return;
+    }
+
+    // Convert USD price to SUI (simplified conversion - in real app, use actual exchange rates)
+    const suiPrice = credit.price * 0.1; // Assuming 1 SUI ≈ $10 USD for demo
+
+    const confirmed = confirm(
+      `Purchase ${credit.co2Amount} tons of CO2 credits from ${credit.projectName}?\n\n` +
+      `Price: ${suiPrice.toFixed(4)} SUI (≈$${credit.price})\n` +
+      `Your wallet: ${wallet.address}\n` +
+      `Current balance: ${wallet.balance} SUI\n\n` +
+      `This will create a blockchain transaction.`
+    );
+
+    if (!confirmed) return;
+
+    try {
+      console.log('Initiating purchase transaction...');
+      
+      // Get auth token
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        alert('Authentication required. Please log in.');
+        return;
+      }
+
+      const response = await fetch('/api/wallet-transactions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          action: 'purchase',
+          userId: currentUser.id,
+          creditId: creditId,
+          paymentAmountSui: suiPrice,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        alert(
+          `Purchase successful!\n\n` +
+          `Transaction ID: ${result.txDigest}\n` +
+          `You now own ${credit.co2Amount} tons of CO2 credits from ${credit.projectName}`
+        );
+        
+        // Refresh wallet balance
+        await refreshWallet();
+        
+        console.log('Purchase completed:', result);
+      } else {
+        alert(`Purchase failed: ${result.error}`);
+        console.error('Purchase failed:', result.error);
+      }
+    } catch (error) {
+      console.error('Purchase error:', error);
+      alert('Purchase failed due to network error. Please try again.');
+    }
   };
 
   return (
     <Navigation>
       <main className="max-w-6xl mx-auto px-4 py-8">
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-3xl font-bold mb-2">Carbon Credit Marketplace</h1>
-            <p className="text-gray-600">Verified carbon offset projects as NFTs</p>
+        {/* Header with Wallet Status */}
+        <div className="flex flex-col lg:flex-row gap-6 mb-8">
+          <div className="flex-1">
+            <div className="flex justify-between items-center mb-4">
+              <div>
+                <h1 className="text-3xl font-bold mb-2">Carbon Credit Marketplace</h1>
+                <p className="text-gray-600">Verified carbon offset projects as NFTs</p>
+              </div>
+              <button
+                onClick={() => setShowListForm(true)}
+                className="bg-black text-white px-6 py-2 border border-black hover:bg-white hover:text-black transition-colors"
+              >
+                List New Credit
+              </button>
+            </div>
+            
+            {/* Wallet Status Alert */}
+            {!isWalletReady && (
+              <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <h3 className="font-semibold text-yellow-800 mb-2">Wallet Required for Trading</h3>
+                <p className="text-yellow-700 text-sm">
+                  You need an activated Sui wallet to buy carbon credits. Your wallet will be used for secure blockchain transactions.
+                </p>
+              </div>
+            )}
           </div>
-          <button
-            onClick={() => setShowListForm(true)}
-            className="bg-black text-white px-6 py-2 border border-black hover:bg-white hover:text-black transition-colors"
-          >
-            List New Credit
-          </button>
+
+          {/* Wallet Status Component */}
+          <div className="lg:w-80">
+            <WalletStatus 
+              userId={currentUser.id}
+              email={currentUser.email}
+              showFullAddress={false}
+            />
+          </div>
         </div>
 
         {/* Filter */}
@@ -186,9 +307,15 @@ export default function MarketplacePage() {
                   </div>
                   <button
                     onClick={() => handlePurchase(credit.id)}
-                    className="bg-black text-white px-4 py-2 border border-black hover:bg-white hover:text-black transition-colors"
+                    disabled={!canTransact}
+                    className={`px-4 py-2 border border-black transition-colors ${
+                      canTransact
+                        ? 'bg-black text-white hover:bg-white hover:text-black'
+                        : 'bg-gray-300 text-gray-500 border-gray-300 cursor-not-allowed'
+                    }`}
+                    title={!canTransact ? 'Please activate your wallet first' : 'Buy this carbon credit'}
                   >
-                    Buy Credit
+                    {canTransact ? 'Buy Credit' : 'Wallet Required'}
                   </button>
                 </div>
               </div>

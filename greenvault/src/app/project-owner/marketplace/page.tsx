@@ -1,8 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Navigation from '@/components/Navigation';
+import WalletStatus from '@/components/WalletStatus';
+import { useWalletIntegration } from '@/lib/hooks/useWalletIntegration';
+import { walletIntegratedSuiClient } from '@/lib/walletSuiIntegration';
 
 interface ProjectListing {
   id: string;
@@ -21,6 +24,78 @@ interface ProjectListing {
 }
 
 export default function ProjectOwnerMarketplace() {
+  // Load authenticated user data from localStorage/session (supports email & Google)
+  const [currentUser, setCurrentUser] = useState<{ id: string; email: string; role?: string } | null>(null);
+
+  useEffect(() => {
+    import('@/lib/auth/user-data-sync').then(({ loadUnifiedUserData }) => {
+      const user = loadUnifiedUserData();
+      if (user && user.id && user.email) {
+        setCurrentUser({ id: user.id, email: user.email, role: user.authType });
+      }
+    });
+  }, []);
+
+  // Wallet integration hook (only activate if user loaded)
+  const {
+    wallet,
+    loading: walletLoading,
+    error: walletError,
+    activateWallet,
+    refreshWallet,
+    isWalletReady,
+    canTransact
+  } = useWalletIntegration({
+    userId: currentUser?.id,
+    email: currentUser?.email,
+    autoRefresh: true,
+    refreshInterval: 30000
+  });
+
+  const handleListProject = async (projectData: {
+    projectName: string;
+    location: string;
+    co2Amount: number;
+    price: number;
+    projectType: string;
+    description: string;
+  }) => {
+    if (!canTransact || !wallet) {
+      alert('Please activate your Sui wallet first to list projects.');
+      return;
+    }
+
+    try {
+      console.log('Listing project on blockchain:', {
+        projectData,
+        walletAddress: wallet.address,
+      });
+
+      const result = await walletIntegratedSuiClient.listCarbonCredit(
+        wallet.address, // This should be the private key, but we don't expose it in the frontend
+        {
+          projectId: `project-${Date.now()}`,
+          co2Amount: projectData.co2Amount,
+          price: projectData.price,
+          location: projectData.location,
+          projectType: projectData.projectType,
+          description: projectData.description,
+          methodology: 'GreenVault Standard v1.0',
+          metadataUri: '',
+        }
+      );
+
+      if (result.success) {
+        alert(`Project listed successfully!\n\nTransaction: ${result.txDigest}\nWallet: ${wallet.address}`);
+      } else {
+        alert(`Failed to list project: ${result.error}`);
+      }
+    } catch (error) {
+      console.error('Error listing project:', error);
+      alert('Failed to list project. Please try again.');
+    }
+  };
+
   const [listings] = useState<ProjectListing[]>([
     {
       id: '1',
@@ -85,18 +160,43 @@ export default function ProjectOwnerMarketplace() {
     <Navigation>
       {/* Main Content */}
       <main className="max-w-6xl mx-auto px-4 py-8">
-        {/* Header Section */}
-        <div className="flex justify-between items-start mb-8">
-          <div>
-            <h1 className="text-3xl font-bold mb-2">Carbon Credit Marketplace</h1>
-            <p className="text-gray-600">Explore successful projects and learn from other community initiatives.</p>
+        {/* Header Section with Wallet Status */}
+        <div className="mb-8">
+          <div className="flex justify-between items-start mb-4">
+            <div>
+              <h1 className="text-3xl font-bold mb-2">Carbon Credit Marketplace</h1>
+              <p className="text-gray-600">Explore successful projects and learn from other community initiatives.</p>
+            </div>
+            <Link
+              href="/project-owner/new-project"
+              className={`px-6 py-3 border border-black transition-colors ${
+                canTransact
+                  ? 'bg-black text-white hover:bg-white hover:text-black'
+                  : 'bg-gray-300 text-gray-500 border-gray-300 cursor-not-allowed'
+              }`}
+              title={!canTransact ? 'Please activate your wallet first to list projects' : 'Create a new project listing'}
+            >
+              {canTransact ? '+ List Your Project' : '+ Wallet Required'}
+            </Link>
           </div>
-          <Link
-            href="/project-owner/new-project"
-            className="bg-black text-white px-6 py-3 border border-black hover:bg-white hover:text-black transition-colors"
-          >
-            + List Your Project
-          </Link>
+          {/* Wallet Status Alert */}
+          {!isWalletReady && (
+            <div className="mb-4 p-4 bg-yellow-50 border border-yellow-50 rounded-lg">
+              <h3 className="font-semibold text-yellow-800 mb-2">Sui Wallet Required for Project Listing</h3>
+              <p className="text-yellow-700 text-sm">
+                You need an activated Sui wallet to list projects and manage carbon credits on the blockchain.
+              </p>
+            </div>
+          )}
+          {/* Sui Wallet Status Component - now below the alert, with extra margin */}
+          <div className="mt-3">
+            <WalletStatus 
+              userId={currentUser?.id || ''}
+              email={currentUser?.email || ''}
+              showFullAddress={true}
+              className="h-fit mb-4"
+            />
+          </div>
         </div>
 
         {/* Stats Bar */}
