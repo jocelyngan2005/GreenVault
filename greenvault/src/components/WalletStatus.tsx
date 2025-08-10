@@ -176,7 +176,7 @@ export default function WalletStatus({
   };
 
   return (
-    <div className={`bg-white rounded-lg border shadow-sm p-4 ${className}`}>
+    <div className={`bg-white border shadow-sm p-4 ${className}`}>
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <Wallet className="w-5 h-5 text-blue-600" />
