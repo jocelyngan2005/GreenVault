@@ -183,7 +183,60 @@ export default function WalletStatus({
           <h3 className="text-lg font-semibold text-gray-900">Your Wallet Status</h3>
         </div>
         <button
-          onClick={refreshWallet}
+          onClick={async () => {
+            console.log('[WalletStatus] Refresh button clicked');
+            if (!wallet || !wallet.address) {
+              setError('Wallet not available');
+              console.log('[WalletStatus] Wallet not available');
+              await refreshWallet();
+              console.log('[WalletStatus] Called refreshWallet() due to missing wallet');
+              return;
+            }
+            setLoading(true);
+            setError('');
+            // If wallet is not activated, request faucet first
+            if (!wallet.isActivated) {
+              console.log('[WalletStatus] Wallet not activated, requesting faucet for address:', wallet.address);
+              try {
+                // Support devnet, testnet, mainnet faucet endpoints
+                let faucetUrl = '';
+                const network = process.env.NEXT_PUBLIC_SUI_NETWORK || 'devnet';
+                if (network === 'testnet') {
+                  faucetUrl = 'https://faucet.testnet.sui.io/v1';
+                } else if (network === 'mainnet') {
+                  faucetUrl = 'https://faucet.mainnet.sui.io/v1';
+                } else {
+                  faucetUrl = 'https://faucet.devnet.sui.io/v1';
+                }
+                if (process.env.NEXT_PUBLIC_SUI_FAUCET_URL) {
+                  faucetUrl = process.env.NEXT_PUBLIC_SUI_FAUCET_URL;
+                }
+                console.log(`[WalletStatus] Using faucet endpoint: ${faucetUrl}`);
+                const response = await fetch(faucetUrl, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({ recipient: wallet.address })
+                });
+                const result = await response.json();
+                if (result && (result.transferredGasObjects?.length > 0 || result.transactionDigest)) {
+                  setMessage('Faucet request successful!');
+                  console.log('[WalletStatus] Faucet request successful!', result);
+                } else {
+                  setError(result.error || 'Faucet request failed');
+                  console.log('[WalletStatus] Faucet request failed:', result.error);
+                }
+              } catch (err) {
+                setError('Faucet request error');
+                console.log('[WalletStatus] Faucet request error:', err);
+              }
+            }
+            console.log('[WalletStatus] Calling refreshWallet() after faucet or normal refresh');
+            await refreshWallet();
+            setLoading(false);
+            console.log('[WalletStatus] Refresh complete');
+          }}
           disabled={loading}
           className="p-2 text-gray-500 hover:text-gray-700 rounded-lg hover:bg-gray-100 disabled:opacity-50"
           title="Refresh wallet status"
