@@ -114,8 +114,7 @@ export default function ProjectOwnerDashboard() {
   const handleSubmitForVerification = async (project: Project) => {
     setVerifyLoading(true);
     try {
-      // For "Submit for Verification", we use the same verifyProject endpoint
-      // but the backend will determine action based on current project status
+      // Call backend to submit for verification (status: submitted)
       const result = await smartContractService.verifyProject(project.id);
       if (result.success) {
         setNotification({
@@ -123,6 +122,8 @@ export default function ProjectOwnerDashboard() {
           message: `Project submitted for verification! TX: ${result.txDigest?.slice(0, 10)}...`
         });
         await refreshProjects();
+        // Redirect to verification page after submit
+        window.location.href = '/project-owner/verification';
       } else {
         setNotification({
           type: 'error',
@@ -133,37 +134,6 @@ export default function ProjectOwnerDashboard() {
       setNotification({
         type: 'error',
         message: 'Submission failed. Please try again.'
-      });
-    } finally {
-      setVerifyLoading(false);
-    }
-  };
-
-  // Handle project verification (for submitted projects)
-  const handleVerifyProject = async (project: Project) => {
-    setVerifyLoading(true);
-    try {
-      // For "Verify", we use the same verifyProject endpoint
-      // but the backend will determine action based on current project status
-      const result = await smartContractService.verifyProject(project.id);
-
-      if (result.success) {
-        setNotification({
-          type: 'success',
-          message: `Project verified successfully on blockchain! TX: ${result.txDigest?.slice(0, 10)}...`
-        });
-        // Refresh projects from blockchain to get updated data
-        await refreshProjects();
-      } else {
-        setNotification({
-          type: 'error',
-          message: result.error || 'Verification failed'
-        });
-      }
-    } catch (error) {
-      setNotification({
-        type: 'error',
-        message: 'Verification failed. Please try again.'
       });
     } finally {
       setVerifyLoading(false);
@@ -452,13 +422,6 @@ export default function ProjectOwnerDashboard() {
           >
             + Register New Project
           </button>
-          <Link
-            href="/project-owner/verification"
-            className="bg-white text-black px-6 py-3 border border-black hover:bg-black hover:text-white transition-colors"
-              passHref
-          >
-            Submit for Verification
-          </Link>
         </div>
 
         {/* Projects Table */}
@@ -524,16 +487,7 @@ export default function ProjectOwnerDashboard() {
                             {verifyLoading ? 'Submitting...' : 'Submit for Verification'}
                           </button>
                         )}
-                        {/* Allow verify if project is submitted */}
-                        {project.status === 'submitted' && (
-                          <button 
-                            onClick={() => handleVerifyProject(project)}
-                            disabled={verifyLoading}
-                            className="text-sm text-orange-600 hover:underline disabled:opacity-50"
-                          >
-                            {verifyLoading ? 'Verifying...' : 'Verify'}
-                          </button>
-                        )}
+                        {/* After verification, allow mint/list actions only for verified projects */}
                         {project.status === 'verified' && !project.nftMinted && (
                           <button 
                             onClick={() => {

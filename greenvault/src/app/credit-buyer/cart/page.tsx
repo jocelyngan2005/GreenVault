@@ -141,6 +141,7 @@ export default function CreditBuyerCart() {
       }
     }
     if (anyError) {
+      //alert('Purchase successful! \nNote: In development, credits need to be properly minted and listed for sale before they can be purchased.');
       alert('Purchase failed: ' + errorMsg + '\n\nNote: In development, credits need to be properly minted and listed for sale before they can be purchased.');
       setIsProcessing(false);
       return;

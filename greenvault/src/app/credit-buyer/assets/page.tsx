@@ -64,6 +64,7 @@ export default function CreditBuyerAssets() {
   const [searchTerm, setSearchTerm] = useState('');
 
   const [ownedNFTs, setOwnedNFTs] = useState<OwnedNFT[]>([]);
+  const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   useEffect(() => {
     // Load purchased NFTs from localStorage (simulate demo)
@@ -77,7 +78,56 @@ export default function CreditBuyerAssets() {
           setOwnedNFTs([]);
         }
       } else {
-        setOwnedNFTs([]);
+        // Add demo NFTs if none exist
+        const demoNFTs: OwnedNFT[] = [
+          {
+            id: '0x00000000000000000000000000000000000000000000000000000000credit_1',
+            projectName: 'Rainforest Conservation',
+            co2Amount: 100,
+            origin: 'Amazon, Brazil',
+            status: 'active',
+            datePurchased: new Date(Date.now() - 86400000 * 10).toISOString(),
+            nftCount: 1,
+            projectType: 'Forest Conservation',
+            verification: 'Oracle Verified',
+            region: 'South America',
+            expiryDate: new Date(Date.now() + 86400000 * 365).toISOString(),
+            purchasePrice: 2000,
+            currentValue: 2200,
+          },
+          {
+            id: '0x00000000000000000000000000000000000000000000000000000000credit_2',
+            projectName: 'Solar Village',
+            co2Amount: 50,
+            origin: 'Rajasthan, India',
+            status: 'active',
+            datePurchased: new Date(Date.now() - 86400000 * 30).toISOString(),
+            nftCount: 2,
+            projectType: 'Renewable Energy',
+            verification: 'Oracle Verified',
+            region: 'Asia',
+            expiryDate: new Date(Date.now() + 86400000 * 200).toISOString(),
+            purchasePrice: 800,
+            currentValue: 900,
+          },
+          {
+            id: '0x00000000000000000000000000000000000000000000000000000000credit_3',
+            projectName: 'Mangrove Restoration',
+            co2Amount: 75,
+            origin: 'Lamu, Kenya',
+            status: 'retired',
+            datePurchased: new Date(Date.now() - 86400000 * 90).toISOString(),
+            nftCount: 1,
+            projectType: 'Ecosystem Restoration',
+            verification: 'Oracle Verified',
+            region: 'Africa',
+            retiredDate: new Date(Date.now() - 86400000 * 10).toISOString(),
+            purchasePrice: 1200,
+            currentValue: 0,
+          },
+        ];
+        setOwnedNFTs(demoNFTs);
+        localStorage.setItem('purchasedNFTs', JSON.stringify(demoNFTs));
       }
     }
   }, []);
@@ -120,19 +170,33 @@ export default function CreditBuyerAssets() {
   const retireNFT = async (nftId: string) => {
     const nft = ownedNFTs.find(n => n.id === nftId);
     if (!nft) return;
-    
-    if (!isValidSuiObjectId(nftId)) {
-      alert('This NFT has an invalid ID format and cannot be retired.');
+
+
+    if (isMockObjectId(nftId)) {
+      // Simulate mock success for demo NFTs (skip ID validation for mocks)
+      const reason = prompt('Enter a reason for retirement:', 'Offsetting emissions');
+      if (!reason) return;
+      const updatedNFTs = ownedNFTs.map(n =>
+        n.id === nftId
+          ? { ...n, status: 'retired' as 'retired', retiredDate: new Date().toISOString() }
+          : n
+      );
+      setOwnedNFTs(updatedNFTs);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('purchasedNFTs', JSON.stringify(updatedNFTs));
+      }
+      setNotification({ type: 'success', message: 'NFT retired successfully! (Simulated for demo NFT)' });
       return;
     }
-    
-    if (isMockObjectId(nftId)) {
-      alert('This is a demo NFT. In development mode, this will be processed as a mock retirement.');
+
+    if (!isValidSuiObjectId(nftId)) {
+      setNotification({ type: 'error', message: 'This NFT has an invalid ID format and cannot be retired.' });
+      return;
     }
-    
+
     const reason = prompt('Enter a reason for retirement:', 'Offsetting emissions');
     if (!reason) return;
-    
+
     try {
       const result = await smartContractService.retireCarbonCredit({
         creditId: nftId,
@@ -158,9 +222,27 @@ export default function CreditBuyerAssets() {
     }
   };
 
+  // Clear notification after 5 seconds
+  useEffect(() => {
+    if (notification) {
+      const timer = setTimeout(() => setNotification(null), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [notification]);
+
   return (
     <Navigation>
       <main className="max-w-7xl mx-auto px-4 py-8">
+        {/* Notification */}
+        {notification && (
+          <div className={`mb-4 p-4 border ${
+            notification.type === 'success'
+              ? 'border-green-500 bg-green-50 text-green-800'
+              : 'border-red-500 bg-red-50 text-red-800'
+          }`}>
+            <p>{notification.message}</p>
+          </div>
+        )}
         {/* Header */}
         <div className="mb-8">
           <div className="flex justify-between items-start mb-4">
