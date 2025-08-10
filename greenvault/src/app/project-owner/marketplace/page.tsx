@@ -440,15 +440,6 @@ export default function ProjectOwnerMarketplace() {
             </Link>
           </div>
         </div>
-        {/* Wallet Status Alert */}
-        {!isWalletReady && (
-          <div className="mb-4 p-4 bg-yellow-50 border border-yellow-50 rounded-lg">
-            <h3 className="font-semibold text-yellow-800 mb-2">Sui Wallet Required for Project Listing</h3>
-            <p className="text-yellow-700 text-sm">
-              You need an activated Sui wallet to list projects and manage carbon credits on the blockchain.
-            </p>
-          </div>
-        )}
         {/* Sui Wallet Status Component - now below the alert, with extra margin */}
         <div className="mt-3">
           <WalletStatus
